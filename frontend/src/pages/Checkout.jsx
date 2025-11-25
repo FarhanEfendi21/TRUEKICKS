@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios"; // <--- GANTI IMPORT SUPABASE JADI AXIOS
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useCart } from "../Context/CartContext";
+import { supabase } from "../lib/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Checkout() {
-  const { cartItems, totalPrice, clearCart } = useCart(); 
+  const { cartItems, totalPrice, clearCart } = useCart(); // Ambil data keranjang
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -21,6 +21,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
 
+  // Cek User Login & Redirect jika keranjang kosong
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -34,41 +35,42 @@ export default function Checkout() {
     }
   }, [cartItems, navigate]);
 
-
- const handleChange = (e) => {
+  const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // <<< TEMPEL KODE handlePayment DI SINI >>>
   const handlePayment = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-        // --- PERUBAHAN DI SINI: PAKAI AXIOS KE BACKEND ---
-        const response = await axios.post("http://localhost:5000/api/orders", {
-            user_id: user.id, // ID ini aman dikirim ke backend
-            full_name: formData.fullName,
-            address: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
-            phone: formData.phone,
-            total_price: totalPrice,
-            items: cartItems 
-        });
-        // -------------------------------------------------
+        // 1. Simpan Pesanan ke Supabase
+        const { error } = await supabase
+            .from('orders')
+            .insert({
+                user_id: user.id, // ID dari localStorage
+                full_name: formData.fullName,
+                address: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
+                phone: formData.phone,
+                total_price: totalPrice,
+                items: cartItems, // Simpan array sepatu sebagai JSON
+                status: 'Processing'
+            });
 
-        // Jika sukses
-        clearCart(); 
+        if (error) throw error;
+
+        // 2. Jika sukses, bersihkan keranjang & notifikasi
+        clearCart(); // <-- Anda perlu menambahkan fungsi ini di CartContext nanti
         toast.success("Order Placed Successfully! 🎉");
         
+        // 3. Redirect ke Home atau Profile setelah 2 detik
         setTimeout(() => {
             navigate('/profile'); 
         }, 2000);
 
     } catch (error) {
         console.error("Checkout Error:", error);
-        // Tampilkan pesan error yang lebih jelas
-        const message = error.response?.data?.error || "Failed to place order.";
-        toast.error(message);
+        toast.error("Failed to place order.");
     } finally {
         setLoading(false);
     }
@@ -84,7 +86,7 @@ export default function Checkout() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           
-          {/* KIRI: FORM */}
+          {/* FORMULIR PENGIRIMAN (KIRI) */}
           <div className="lg:col-span-7">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                 <h2 className="font-bold text-xl mb-6 flex items-center gap-2">
@@ -118,16 +120,17 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* KANAN: SUMMARY */}
+          {/* RINGKASAN PESANAN (KANAN) */}
           <div className="lg:col-span-5">
              <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 sticky top-32">
                 <h2 className="font-bold text-xl mb-6">Order Summary</h2>
                 
+                {/* Item List Kecil */}
                 <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {cartItems.map((item, idx) => (
                         <div key={idx} className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
-                                <img src={item.image} className="w-full object-contain mix-blend-multiply" alt="" />
+                            <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center">
+                                <img src={item.image} className="w-[80%] mix-blend-multiply" alt="" />
                             </div>
                             <div className="flex-grow">
                                 <p className="text-xs font-bold text-gray-900 line-clamp-1">{item.name}</p>

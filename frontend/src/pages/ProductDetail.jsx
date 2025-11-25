@@ -125,12 +125,13 @@ export default function ProductDetail() {
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.final_price, 
+      // UBAH: Kirim harga asli (price) karena final_price sudah tidak ada
+      price: product.price, 
       image: product.image_url,
       size: selectedSize,
       quantity: quantity
     });
-    toast.success(`Added to bag at Rp ${(product.final_price / 1000).toLocaleString()}K`);
+    toast.success(`Added to bag at Rp ${(product.price/ 1000).toLocaleString()}K`);
   };
 
   const handleSubmitReview = async (e) => {

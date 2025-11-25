@@ -62,7 +62,15 @@ export const CartProvider = ({ children }) => {
   };
 
   // Hitung Total Harga & Total Item
-  const totalPrice = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  // BARIS BARU (lebih robust / kuat)
+const totalPrice = cartItems.reduce((total, item) => {
+  // 1. Konversi price dan quantity menjadi float (angka)
+  const price = parseFloat(item.price) || 0; // Jika gagal parse, anggap 0
+  const quantity = parseFloat(item.quantity) || 0; // Pastikan quantity juga Number
+
+  // 2. Lakukan perhitungan
+  return total + (price * quantity);
+}, 0);
   const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
 
 const clearCart = () => {
