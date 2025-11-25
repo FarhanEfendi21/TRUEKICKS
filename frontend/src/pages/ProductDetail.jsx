@@ -270,10 +270,10 @@ export default function ProductDetail() {
     <div className="min-h-screen bg-white font-poppins text-gray-900">
       <Navbar />
 
-      <main className="pt-28 pb-20 max-w-7xl mx-auto px-6">
+      <main className="pt-24 pb-32 md:pt-28 md:pb-20 max-w-7xl mx-auto px-4 md:px-6">
         
         {/* BREADCRUMB */}
-        <nav className="text-xs font-medium text-gray-400 mb-10 flex items-center gap-3 uppercase tracking-wide">
+         <nav className="text-[10px] md:text-xs font-medium text-gray-400 mb-6 md:mb-10 flex items-center gap-2 md:gap-3 uppercase tracking-wide overflow-hidden whitespace-nowrap">
            <span onClick={() => navigate('/home')} className="cursor-pointer hover:text-black transition-colors">Home</span> 
            <span className="text-gray-300">/</span> 
            
@@ -294,7 +294,7 @@ export default function ProductDetail() {
            </span> 
            
            <span className="text-gray-300">/</span>
-           <span className="text-black font-semibold truncate max-w-[250px]">{product.name}</span>
+           <span className="text-black font-semibold truncate max-w-[150px] md:max-w-[250px]">{product.name}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
@@ -311,15 +311,15 @@ export default function ProductDetail() {
                     <img src={currentMainImage} alt={product.name} key={currentMainImage} className="w-[85%] h-auto object-contain mix-blend-multiply z-10 drop-shadow-xl transition-all duration-700 ease-in-out group-hover:scale-105 group-hover:-rotate-2 animate-fade-in" />
                   </div>
                   
-                  {/* GALLERY THUMBNAILS */}
-                  <div className="flex gap-4 mt-8 overflow-x-auto no-scrollbar pb-4 snap-x p-1">
+                  {/* GALLERY THUMBNAILS (Scrollable on Mobile) */}
+                  <div className="flex gap-3 md:gap-4 mt-6 md:mt-8 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
                       {galleryImages.map((imgUrl, i) => {
                         const isActive = currentMainImage === imgUrl;
                         return (
                             <div 
                                 key={i} 
                                 onClick={() => setActiveImage(imgUrl)} 
-                                className={`w-24 h-24 rounded-2xl flex-shrink-0 flex items-center justify-center cursor-pointer transition-all duration-300 snap-start relative overflow-hidden
+                                className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex-shrink-0 flex items-center justify-center cursor-pointer transition-all duration-300 snap-start relative overflow-hidden
                                     ${isActive 
                                         ? 'bg-white border-[3px] border-black shadow-md scale-105' 
                                         : 'bg-[#F8F8F8] border-2 border-transparent hover:border-gray-300 opacity-80 hover:opacity-100'
@@ -386,46 +386,53 @@ export default function ProductDetail() {
               </div>
 
               {/* ACTION BUTTONS (ENFORCEMENT HERE) */}
-              <div className="flex gap-4 mb-12">
-                  {/* Quantity */}
-                  <div className="flex items-center bg-gray-50 border-2 border-gray-100 rounded-full h-16 px-5 gap-6">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={!user} className="w-8 h-8 flex items-center justify-center text-xl text-gray-500 hover:text-black transition-colors hover:bg-gray-200 rounded-full disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed">-</button>
-                      <span className="font-bold w-6 text-center text-lg">{quantity}</span>
-                      <button onClick={() => setQuantity(quantity + 1)} disabled={!user} className="w-8 h-8 flex items-center justify-center text-xl text-gray-500 hover:text-black transition-colors hover:bg-gray-200 rounded-full disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed">+</button>
+              <div className="flex flex-col md:flex-row gap-4 mb-8 md:mb-12">
+                  
+                  {/* Quantity: Full Width di Mobile */}
+                  <div className="flex items-center justify-between md:justify-start bg-gray-50 border-2 border-gray-100 rounded-full h-14 md:h-16 px-6 md:px-5 w-full md:w-auto md:gap-6">
+                      <span className="md:hidden font-bold text-xs text-gray-500 uppercase tracking-wide">Quantity</span>
+                      <div className="flex items-center gap-4 md:gap-6">
+                          <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={!user} className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 hover:text-black transition-colors bg-white md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50">-</button>
+                          <span className="font-bold w-4 text-center text-base md:text-lg">{quantity}</span>
+                          <button onClick={() => setQuantity(quantity + 1)} disabled={!user} className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 hover:text-black transition-colors bg-white md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50">+</button>
+                      </div>
                   </div>
                   
-                  {/* Add to Bag (Hero Button) */}
-                  <button 
-                    onClick={handleAddToCart} 
-                    disabled={!user || !selectedSize} 
-                    className={`flex-1 text-white h-16 rounded-full font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-3 group relative overflow-hidden 
-                      ${!user || !selectedSize
-                        ? 'bg-gray-400 cursor-not-allowed opacity-70'
-                        : 'bg-gradient-to-r from-gray-900 to-black hover:shadow-lg hover:shadow-black/30'
-                      }`}
-                  >
-                     <span className="relative z-10">{!user ? 'Login Required' : 'Add to Bag'}</span>
-                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                     </svg>
-                  </button>
-                  
-                  {/* Wishlist */}
-                  <button 
-                    onClick={handleWishlistToggle}
-                    disabled={!user} 
-                    className={`w-16 h-16 border-2 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 group 
-                      ${!user
-                        ? 'border-gray-200 text-gray-300 opacity-60 cursor-not-allowed'
-                        : isLiked 
-                          ? "border-red-500 bg-red-50 text-red-500" 
-                          : "border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50"
-                      }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill={isLiked && user ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                    </svg>
-                  </button>
+                  {/* Tombol Add & Wishlist dalam satu row di mobile */}
+                  <div className="flex gap-3 w-full md:flex-1">
+                    {/* Add to Bag */}
+                    <button 
+                        onClick={handleAddToCart} 
+                        disabled={!user || !selectedSize} 
+                        className={`flex-1 text-white h-14 md:h-16 rounded-full font-bold text-[10px] md:text-sm uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 md:gap-3 group relative overflow-hidden shadow-md md:shadow-none
+                        ${!user || !selectedSize
+                            ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                            : 'bg-gradient-to-r from-gray-900 to-black hover:shadow-lg hover:shadow-black/30'
+                        }`}
+                    >
+                        <span className="relative z-10 whitespace-nowrap">{!user ? 'Login Required' : 'Add to Bag'}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5 relative z-10 group-hover:translate-x-1 transition-transform">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                    </button>
+                    
+                    {/* Wishlist */}
+                    <button 
+                        onClick={handleWishlistToggle}
+                        disabled={!user} 
+                        className={`w-14 h-14 md:w-16 md:h-16 border-2 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 group flex-shrink-0
+                        ${!user
+                            ? 'border-gray-200 text-gray-300 opacity-60 cursor-not-allowed'
+                            : isLiked 
+                            ? "border-red-500 bg-red-50 text-red-500" 
+                            : "border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50"
+                        }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill={isLiked && user ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 md:w-7 md:h-7">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                        </svg>
+                    </button>
+                  </div>
               </div>
 
               {/* TRUST BADGES (CLEANER) */}

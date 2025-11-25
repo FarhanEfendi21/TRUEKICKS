@@ -155,7 +155,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-50 font-poppins">
       <Navbar />
 
-      <div className="pt-32 pb-20 max-w-7xl mx-auto px-6">
+      <div className="pt-24 md:pt-32 pb-32 md:pb-20 max-w-7xl mx-auto px-4 md:px-6">
         
         {/* ========================================================
             HEADER & SEARCH RESULT
@@ -163,9 +163,9 @@ useEffect(() => {
         <div className="text-center mb-6">
             <span className="text-[#FF5500] font-bold text-sm tracking-wider uppercase">Premium Collection</span>
             
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mt-2">
-                ALL SNEAKERS
-            </h1>
+            <h1 className="text-3xl md:text-5xl font-black text-gray-900 mt-2">
+                ALL SNEAKERS
+            </h1>
             
             {searchKeyword && (
                 <div className="mt-4 mb-4 flex items-center justify-center gap-3 animate-fade-in-down">
@@ -205,15 +205,15 @@ useEffect(() => {
             {/* === FILTER CONTAINER BARU: TIPE SEPATU (Dynamic & Solid Black) === */}
             <div className="w-full bg-white p-5 rounded-2xl shadow-lg border border-gray-100 mb-4">
                 <h3 className="font-black text-xs text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Shoe Type Categories</h3>
-                <div className="flex flex-wrap justify-center gap-3">
+                <div className="flex flex-nowrap md:flex-wrap overflow-x-auto md:overflow-visible gap-2 md:gap-3 pb-2 md:pb-0 scrollbar-hide">
                     {shoeTypes.map((typeCat) => (
                         <button
                             key={typeCat}
                             onClick={() => handleTypeFilter(typeCat)}
-                            className={`px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 ${
+                            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 whitespace-nowrap ${
                                 activeTypeFilter === typeCat
-                                    ? "bg-black text-white shadow-md transform scale-[1.02]"
-                                    : "bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-black"
+                                    ? "bg-black text-white shadow-md"
+                                    : "bg-white text-gray-600 border border-gray-200"
                             }`}
                         >
                             {typeCat}
@@ -224,15 +224,15 @@ useEffect(() => {
 
 
             {/* Filter Kategori (Filter Brand Lama) */}
-            <div className="flex flex-wrap justify-center gap-3 mb-12">
+            <div className="flex flex-nowrap md:flex-wrap overflow-x-auto md:overflow-visible gap-2 md:gap-3 mb-8 md:mb-12 pb-2 md:pb-0 scrollbar-hide">
                 {brandCategories.map((cat) => (
                     <button
                         key={cat}
                         onClick={() => handleBrandFilter(cat)}
-                        className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${
+                        className={`flex-shrink-0 px-5 py-2 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
                             activeCategory === cat
-                                ? "bg-[#FF5500] text-white shadow-lg transform scale-105" 
-                                : "bg-white text-gray-500 border border-gray-200 hover:border-gray-400 hover:text-black"
+                                ? "bg-[#FF5500] text-white shadow-lg" 
+                                : "bg-white text-gray-500 border border-gray-200"
                         }`}
                     >
                         {cat}
@@ -251,7 +251,7 @@ useEffect(() => {
              </div>
         ) : currentItems.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-32">
                 {currentItems.map((item) => (
                   // 3. TAMBAHKAN ONCLICK DI SINI
                   <div 

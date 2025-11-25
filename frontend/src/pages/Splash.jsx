@@ -91,8 +91,8 @@ export default function Splash() {
       </div>
 
       {/* Large Gradient Orbs with Movement */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#FF5500] rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob-slow"></div>
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-orange-600 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob-medium"></div>
+<div className="absolute top-1/4 -left-10 w-64 h-64 md:w-96 md:h-96 bg-[#FF5500] rounded-full mix-blend-screen filter blur-3xl opacity-20 animate-blob-slow pointer-events-none"></div>
+      <div className="absolute top-1/2 -right-10 w-64 h-64 md:w-96 md:h-96 bg-orange-600 rounded-full mix-blend-screen filter blur-3xl opacity-20 animate-blob-medium pointer-events-none"></div>
       <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-red-600 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob-fast"></div>
 
       {/* Scanline Effect */}
@@ -135,7 +135,7 @@ export default function Splash() {
             <div className="absolute inset-0 bg-gradient-to-r from-[#FF5500] via-orange-500 to-red-500 rounded-3xl blur-3xl opacity-60 animate-pulse-slow"></div>
             
             <div className={`relative transform transition-all duration-300 ${glitchActive ? 'glitch-active' : ''}`}>
-              <h1 className="text-[5rem] md:text-[7rem] lg:text-[9rem] font-black italic tracking-tighter px-8 py-6 select-none"
+              <h1 className="text-[13vw] md:text-[7rem] lg:text-[9rem] font-black italic tracking-tighter px-8 py-6 select-none"
                 style={{
                   background: 'linear-gradient(135deg, #fff 0%, #FF5500 50%, #fff 100%)',
                   backgroundSize: '200% 200%',
@@ -195,7 +195,7 @@ export default function Splash() {
         </p>
 
         {/* Ultra Modern Progress Bar */}
-        <div className="w-80 relative">
+        <div className="w-full max-w-[280px] md:max-w-xs relative">
           {/* Glow Background */}
           <div className="absolute -inset-2 bg-gradient-to-r from-[#FF5500] to-orange-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
           

@@ -43,50 +43,56 @@ export default function Cart() {
     <div className="min-h-screen bg-gray-50 font-poppins">
       <Navbar />
 
-      <main className="pt-32 pb-20 max-w-7xl mx-auto px-6">
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-8">MY BAG ({cartItems.length})</h1>
+      <main className="pt-24 pb-32 md:pt-32 md:pb-20 max-w-7xl mx-auto px-4 md:px-6">
+        <div className="flex items-end justify-between mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-4xl font-black text-gray-900">MY BAG <span className="text-[#FF5500]">({cartItems.length})</span></h1>
+            <button onClick={() => navigate('/home')} className="text-xs font-bold underline underline-offset-4 text-gray-500 hover:text-black">Continue Shopping</button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           
-          {/* DAFTAR ITEM */}
-          <div className="lg:col-span-2 space-y-6">
+                  {/* === DAFTAR ITEM === */}
+          <div className="lg:col-span-2 space-y-4 md:space-y-6">
             {cartItems.map((item) => {
-                const itemPrice = safePrice(item.price); // Pastikan harga adalah angka
+                const itemPrice = safePrice(item.price);
                 const subtotalItem = itemPrice * item.quantity;
                 
                 return (
-                    <div key={`${item.id}-${item.size}`} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex gap-6 items-center relative group">
+                    <div key={`${item.id}-${item.size}`} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 flex gap-4 md:gap-6 items-start md:items-center relative group transition-all hover:shadow-md">
                         
-                        {/* Gambar */}
-                        <div className="w-28 h-28 bg-gray-50 rounded-2xl flex-shrink-0 flex items-center justify-center overflow-hidden">
-                          <img src={item.image} alt={item.name} className="w-[90%] object-contain mix-blend-multiply" />
+                        {/* Gambar (Ukuran disesuaikan untuk mobile) */}
+                        <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl md:rounded-2xl flex-shrink-0 flex items-center justify-center overflow-hidden p-2">
+                          <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
                         </div>
 
                         {/* Info Produk */}
-                        <div className="flex-grow">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-bold text-lg text-gray-900 leading-tight">{item.name}</h3>
-                              <p className="text-sm text-gray-500 mt-1">Size: <span className="font-bold text-black">{item.size}</span></p>
+                        <div className="flex-grow flex flex-col justify-between min-h-[96px] md:min-h-[128px]">
+                          <div>
+                            <div className="flex justify-between items-start">
+                                <h3 className="font-bold text-sm md:text-lg text-gray-900 leading-snug line-clamp-2 md:line-clamp-none pr-6">{item.name}</h3>
+                                {/* Tombol Hapus (Mobile: Absolute Top Right) */}
+                                <button 
+                                  onClick={() => removeFromCart(item.id, item.size)}
+                                  className="text-gray-300 hover:text-red-500 transition-colors -mt-1 -mr-2 p-2"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.636-1.452zM12.75 9.75a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75zm-3.375 0a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75zm6.75 0a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
                             </div>
-                            <button 
-                              onClick={() => removeFromCart(item.id, item.size)}
-                              className="text-gray-400 hover:text-red-500 transition-colors p-2"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.636-1.452zM12.75 9.75a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75zm-3.375 0a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75zm6.75 0a.75.75 0 10-1.5 0v8.625a.75.75 0 101.5 0V9.75z" clipRule="evenodd" />
-                              </svg>
-                            </button>
+                            <p className="text-xs md:text-sm text-gray-500 mt-1">Size: <span className="font-bold text-black">{item.size}</span></p>
                           </div>
 
-                          <div className="flex justify-between items-end mt-4">
-                            <div className="flex items-center border border-gray-200 rounded-full px-3 py-1 gap-3 bg-gray-50">
-                              <button onClick={() => updateQuantity(item.id, item.size, Math.max(1, item.quantity - 1))} className="text-gray-500 hover:text-black font-bold text-lg">-</button>
-                              <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                              <button onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)} className="text-gray-500 hover:text-black font-bold text-lg">+</button>
+                          <div className="flex justify-between items-end mt-2 md:mt-4">
+                            {/* Quantity Control (Compact) */}
+                            <div className="flex items-center border border-gray-200 rounded-lg md:rounded-full px-2 py-1 md:px-3 gap-3 md:gap-4 bg-gray-50 h-8 md:h-10">
+                              <button onClick={() => updateQuantity(item.id, item.size, Math.max(1, item.quantity - 1))} className="text-gray-400 hover:text-black font-bold text-base md:text-lg flex items-center justify-center w-4">-</button>
+                              <span className="text-xs md:text-sm font-bold w-4 text-center">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)} className="text-gray-400 hover:text-black font-bold text-base md:text-lg flex items-center justify-center w-4">+</button>
                             </div>
-                            {/* Harga Individual Item (FIXED) */}
-                            <p className="text-lg font-black text-gray-900">
+                            
+                            {/* Harga */}
+                            <p className="text-sm md:text-lg font-black text-gray-900">
                               Rp {(subtotalItem / 1000).toLocaleString()}K
                             </p>
                           </div>
