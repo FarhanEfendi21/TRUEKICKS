@@ -109,22 +109,20 @@ useEffect(() => {
         }`}
         onMouseLeave={() => setShowCatalog(false)}
       >
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
           
           {/* 1. LOGO */}
           <div className="flex items-center gap-4 z-50">
-
-          <button 
-              className="hidden md:block lg:hidden text-gray-800 p-1" // <--- PERUBAHAN UTAMA DI SINI
+            <button 
+              className="xl:hidden text-gray-800 p-1 hover:bg-gray-100 rounded-lg transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              {/* Icon Hamburger / Close */}
               {isMobileMenuOpen ? (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                 </svg>
               )}
