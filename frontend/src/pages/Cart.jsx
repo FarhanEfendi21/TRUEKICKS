@@ -27,7 +27,7 @@ export default function Cart() {
     setIsCheckingCoupon(true);
     try {
       // Gunakan environment variable untuk produksi
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const response = await axios.post(`${API_URL}/api/coupons/verify`, {
         code: couponCode,
         totalAmount: totalPrice,

@@ -19,7 +19,7 @@ export default function OrderHistory() {
             }
 
             try {
-                const API_URL = import.meta.env.VITE_API_BASE_URL;
+                const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
                 const response = await axios.get(`${API_URL}/api/orders/user/${user.id}`);
                 setOrders(response.data);
             } catch (error) {

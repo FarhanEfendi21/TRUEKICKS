@@ -13,7 +13,7 @@ export default function Search() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all");
 
-    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -107,15 +107,15 @@ export default function Search() {
                             key={tab.key}
                             onClick={() => setActiveFilter(tab.key)}
                             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeFilter === tab.key
-                                    ? "bg-gray-900 text-white"
-                                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                                ? "bg-gray-900 text-white"
+                                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
                                 }`}
                         >
                             {tab.label}
                             <span
                                 className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${activeFilter === tab.key
-                                        ? "bg-white/20 text-white"
-                                        : "bg-gray-100 text-gray-500"
+                                    ? "bg-white/20 text-white"
+                                    : "bg-gray-100 text-gray-500"
                                     }`}
                             >
                                 {counts[tab.key]}
@@ -193,10 +193,10 @@ export default function Search() {
                                 <div className="flex justify-between items-center mb-2">
                                     <span
                                         className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${item.productType === "sneakers"
-                                                ? "bg-blue-100 text-blue-600"
-                                                : item.productType === "apparel"
-                                                    ? "bg-green-100 text-green-600"
-                                                    : "bg-red-100 text-red-600"
+                                            ? "bg-blue-100 text-blue-600"
+                                            : item.productType === "apparel"
+                                                ? "bg-green-100 text-green-600"
+                                                : "bg-red-100 text-red-600"
                                             }`}
                                     >
                                         {item.productType === "sale_products"

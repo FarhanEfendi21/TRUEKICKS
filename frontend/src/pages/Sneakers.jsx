@@ -218,7 +218,7 @@ export default function Sneakers() {
     const fetchProducts = async () => {
       try {
         // 1. Ambil URL Backend dari Environment Variable
-        const API_URL = import.meta.env.VITE_API_BASE_URL;
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
         // 2. Gunakan URL dinamis
         const response = await axios.get(`${API_URL}/api/sneakers`);

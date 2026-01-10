@@ -72,7 +72,7 @@ export default function Profile() {
         return;
       }
       try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL;
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
         const response = await axios.get(`${API_URL}/api/orders/user/${user.id}`);
         setOrders(response.data || []);
       } catch (error) {
@@ -136,7 +136,7 @@ export default function Profile() {
 
     setIsSaving(true);
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL;
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const response = await axios.put(`${API_URL}/api/users/${user.id}`, {
         full_name: editForm.full_name.trim()
       });

@@ -222,7 +222,7 @@ export default function ProductDetail() {
     if (!newComment) return toast.error("Please write a comment"); // --- NOTIFIKASI BARU ---
 
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL;
+      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       await axios.post(`${API_URL}/api/reviews`, {
         product_id: id,
         product_type: type,
@@ -263,7 +263,7 @@ export default function ProductDetail() {
         }
         // =========================
 
-        const API_URL = import.meta.env.VITE_API_BASE_URL;
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
         // === 2. Gunakan URL tersebut untuk fetch Detail Produk ===
         const productRes = await axios.get(

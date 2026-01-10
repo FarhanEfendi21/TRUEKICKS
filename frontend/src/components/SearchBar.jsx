@@ -11,7 +11,7 @@ export default function SearchBar({ onClose }) {
     const containerRef = useRef(null);
     const navigate = useNavigate();
 
-    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
     // Focus input when opened
     useEffect(() => {
@@ -282,8 +282,8 @@ export default function SearchBar({ onClose }) {
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span
                                                         className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.productType === "sneakers"
-                                                                ? "bg-blue-100 text-blue-600"
-                                                                : "bg-green-100 text-green-600"
+                                                            ? "bg-blue-100 text-blue-600"
+                                                            : "bg-green-100 text-green-600"
                                                             }`}
                                                     >
                                                         {item.productType}
@@ -367,8 +367,8 @@ export default function SearchBar({ onClose }) {
                                         >
                                             <span
                                                 className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${item.page === "sneakers"
-                                                        ? "bg-blue-100 text-blue-600"
-                                                        : "bg-green-100 text-green-600"
+                                                    ? "bg-blue-100 text-blue-600"
+                                                    : "bg-green-100 text-green-600"
                                                     }`}
                                             >
                                                 {item.page === "sneakers" ? "👟" : "👕"}

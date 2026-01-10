@@ -18,7 +18,7 @@ export default function Reviews({ productId, productType }) {
 
     const fetchReviews = async () => {
         try {
-            const API_URL = import.meta.env.VITE_API_BASE_URL;
+            const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
             const response = await axios.get(`${API_URL}/api/reviews/${productId}`);
             setReviews(response.data);
         } catch (error) {
@@ -41,7 +41,7 @@ export default function Reviews({ productId, productType }) {
 
         setSubmitting(true);
         try {
-            const API_URL = import.meta.env.VITE_API_BASE_URL;
+            const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
             await axios.post(`${API_URL}/api/reviews`, {
                 user_id: user.id,
                 product_id: productId,

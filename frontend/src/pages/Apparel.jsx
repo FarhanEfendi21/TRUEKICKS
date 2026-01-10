@@ -151,7 +151,7 @@ export default function Apparel() {
     const fetchApparel = async () => {
       try {
         // 1. Ambil URL dasar dari Environment Variable
-        const API_URL = import.meta.env.VITE_API_BASE_URL;
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
         // 2. Gunakan URL tersebut untuk memanggil endpoint apparel
         const response = await axios.get(`${API_URL}/api/apparel`);
