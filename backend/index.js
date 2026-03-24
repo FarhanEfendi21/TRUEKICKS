@@ -18,7 +18,17 @@ const PORT = process.env.PORT || 5000;
 
 // === SECURITY MIDDLEWARE ===
 app.use(helmet()); // Security headers
-app.use(cors({ origin: true, credentials: true })); // CORS with credentials allowed
+
+// STRICT DYNAMIC CORS FOR VERCEL
+app.use(cors({
+  origin: function (origin, callback) {
+    // Memantulkan origin request secara eksak
+    if (!origin) return callback(null, true);
+    return callback(null, origin);
+  },
+  credentials: true
+})); // CORS with credentials allowed
+
 app.use(express.json({ limit: '10mb' })); // Body parser with size limit
 app.use(cookieParser()); // Parse Cookie header
 app.use('/api', apiLimiter); // General rate limiting for all API routes
