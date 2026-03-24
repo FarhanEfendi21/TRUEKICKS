@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Pagination from "../components/Pagination";
+import LazyImage from "../components/LazyImage";
 
 // 1. CUSTOM HOOK: SCROLL ANIMATION
 // =========================================
@@ -151,11 +152,11 @@ const SaleProductCard = ({ item, navigate }) => {
             <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
           </div>
 
-          <img
+          <LazyImage
             src={item.image_url}
             className="w-[85%] h-[85%] object-contain mix-blend-lighten transition-all duration-500 group-hover:scale-110 group-hover:-rotate-6 relative z-10 drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]"
             alt={item.name}
-            loading="lazy"
+            placeholderColor="bg-transparent"
           />
         </div>
 
@@ -568,8 +569,16 @@ export default function Sale() {
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="h-[320px] bg-gray-200 rounded-3xl animate-pulse"
-              ></div>
+                className="bg-gray-900 border border-purple-500/10 p-4 rounded-3xl flex flex-col gap-3"
+              >
+                 <div className="w-full h-[180px] bg-gray-800 rounded-2xl animate-pulse"></div>
+                 <div className="w-3/4 h-4 bg-gray-800 rounded animate-pulse"></div>
+                 <div className="w-1/2 h-3 bg-gray-800 rounded animate-pulse"></div>
+                 <div className="flex justify-between items-center mt-4">
+                    <div className="w-1/3 h-5 bg-gray-800 rounded animate-pulse"></div>
+                    <div className="w-9 h-9 bg-gray-800 rounded-xl animate-pulse"></div>
+                 </div>
+              </div>
             ))}
           </div>
         ) : (

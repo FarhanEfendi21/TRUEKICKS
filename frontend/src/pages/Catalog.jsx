@@ -1,34 +1,29 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import ProductCard from "../components/ProductCard";
 
 export default function Catalog() {
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   const location = useLocation();
-
   const searchKeyword = location.state?.keyword || "";
   const [searchTerm, setSearchTerm] = useState(searchKeyword);
+  const [filteredProducts, setFilteredProducts] = useState([]);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-        const response = await axios.get(`${API_URL}/api/sneakers`);
-        setProducts(response.data);
-        setFilteredProducts(response.data);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
+  // Fetch data with React Query
+  const fetchProducts = async () => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+    const { data } = await axios.get(`${API_URL}/api/sneakers`);
+    return data;
+  };
+
+  const { data: products = [], isLoading, isError } = useQuery({
+    queryKey: ['catalogProducts'],
+    queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   useEffect(() => {
     if (location.state?.keyword && location.state.keyword !== searchTerm) {
@@ -62,29 +57,46 @@ export default function Catalog() {
         </div>
 
         {/* Grid Produk */}
-        {loading ? (
-          <p className="text-center mt-20">Loading catalog...</p>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
+            {[...Array(8)].map((_, i) => (
+               <div key={i} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                 <div className="w-full h-[180px] bg-gray-200 rounded-2xl animate-pulse"></div>
+                 <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                 <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse"></div>
+                 <div className="flex justify-between items-center mt-auto pt-2">
+                   <div className="w-1/3 h-5 bg-gray-200 rounded animate-pulse"></div>
+                   <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+                 </div>
+               </div>
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-20">
+            <p className="text-xl font-bold text-red-500 mb-2">Failed to load catalog.</p>
+            <p className="text-gray-500">Please check your network or try again later.</p>
+          </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredProducts.map((item) => (
-              <div key={item.id} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer">
-                <div className="relative h-[180px] bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="absolute top-3 left-3 bg-black text-white text-[10px] px-2 py-1 rounded-full">{item.category}</span>
-                  <img src={item.image_url} className="w-[85%] h-[85%] object-contain mix-blend-multiply" alt={item.name} />
-                </div>
-                <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{item.name}</h3>
-                <p className="text-xs text-gray-500 mt-1">{item.category}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <p className="text-[#FF5500] font-bold text-sm">Rp {(item.price / 1000).toLocaleString()}K</p>
-                  <button className="w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors">+</button>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
+            {filteredProducts.map((item, index) => (
+              <ProductCard
+                key={item.id}
+                item={item}
+                index={index}
+                productType="sneakers"
+              />
             ))}
           </div>
         ) : (
-          <div className="text-center py-20">
-            <p className="text-xl font-bold text-gray-400">No products found.</p>
-            <button onClick={() => setSearchTerm("")} className="mt-4 text-[#FF5500] font-bold hover:underline">
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-24 h-24 mb-6 rounded-full bg-gray-50 flex items-center justify-center">
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-gray-400">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+               </svg>
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 mb-2">Nothing found</h3>
+            <p className="text-gray-500 max-w-sm mx-auto mb-6">We couldn't find any products matching <span className="font-bold text-gray-900">"{searchTerm}"</span>. Try adjusting your search.</p>
+            <button onClick={() => setSearchTerm("")} className="px-6 py-3 bg-black text-white font-bold rounded-xl hover:bg-[#FF5500] hover:shadow-lg transition-all active:scale-95">
               Clear Search
             </button>
           </div>

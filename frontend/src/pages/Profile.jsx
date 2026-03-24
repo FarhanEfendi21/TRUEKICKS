@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api, { logout } from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useTheme } from "../Context/ThemeContext";
@@ -72,8 +72,7 @@ export default function Profile() {
         return;
       }
       try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-        const response = await axios.get(`${API_URL}/api/orders/user/${user.id}`);
+        const response = await api.get(`/api/orders/user/${user.id}`);
         setOrders(response.data || []);
       } catch (error) {
         console.error("Failed to fetch orders:", error);
@@ -101,8 +100,8 @@ export default function Profile() {
     });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    await logout();
     localStorage.removeItem("profileImage");
     navigate("/login");
   };
@@ -136,8 +135,7 @@ export default function Profile() {
 
     setIsSaving(true);
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-      const response = await axios.put(`${API_URL}/api/users/${user.id}`, {
+      const response = await api.put(`/api/users/${user.id}`, {
         full_name: editForm.full_name.trim()
       });
 
@@ -186,14 +184,7 @@ export default function Profile() {
                   <span className="text-xl font-semibold text-gray-400">{getInitials(user.full_name)}</span>
                 )}
               </div>
-              {!isGuest && (
-                <label className="absolute bottom-0 right-0 w-7 h-7 bg-black rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors shadow-md">
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
-              )}
+              {/* Photo edit removed - only available in Edit Profile modal */}
             </div>
 
             {/* Name & Email */}

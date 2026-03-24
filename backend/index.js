@@ -1,17 +1,28 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import supabase from "./config/supabase.js";
 import bcrypt from "bcryptjs";
+
+// Security Middleware
+import { generateToken, authMiddleware } from "./middleware/auth.js";
+import { registerValidation, loginValidation, validate } from "./middleware/validation.js";
+import { authLimiter, apiLimiter } from "./middleware/rateLimit.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001; // CHANGED TO 5001 TO AVOID CONFLICT
+const PORT = process.env.PORT || 5000;
 
-// Agar bisa diakses dari Frontend manapun (termasuk Vercel Frontend)
-app.use(cors());
-app.use(express.json());
+// === SECURITY MIDDLEWARE ===
+app.use(helmet()); // Security headers
+app.use(cors({ origin: true, credentials: true })); // CORS with credentials allowed
+app.use(express.json({ limit: '10mb' })); // Body parser with size limit
+app.use(cookieParser()); // Parse Cookie header
+app.use('/api', apiLimiter); // General rate limiting for all API routes
+app.use('/api', apiLimiter); // General rate limiting for all API routes
 
 // === ROUTE TEST (Untuk Cek Server Jalan) ===
 app.get("/", (req, res) => {
@@ -76,63 +87,101 @@ app.get("/api/categories", async (req, res) => {
 });
 
 // === 5. ROUTE REGISTER (Daftar User Baru) ===
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", authLimiter, registerValidation, validate, async (req, res) => {
   const { full_name, email, password } = req.body;
+
+  // Normalize email (already validated by middleware)
+  const normalizedEmail = email.trim().toLowerCase();
 
   try {
     const { data: existingUser } = await supabase
       .from("users")
       .select("email")
-      .eq("email", email)
+      .eq("email", normalizedEmail)
       .single();
 
     if (existingUser) {
-      return res.status(400).json({ message: "Email sudah terdaftar!" });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12); // Increased salt rounds
 
     const { data, error } = await supabase
       .from("users")
-      .insert([{ full_name, email, password: hashedPassword }])
+      .insert([{ full_name: full_name.trim(), email: normalizedEmail, password: hashedPassword }])
       .select();
 
     if (error) throw error;
 
-    res.status(201).json({ message: "Registrasi berhasil!", user: data[0] });
+    // Remove password from response for security
+    const userResponse = { ...data[0] };
+    delete userResponse.password;
+
+    res.status(201).json({ message: "Registration successful!", user: userResponse });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 // === 6. ROUTE LOGIN (Masuk) ===
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", authLimiter, loginValidation, validate, async (req, res) => {
   const { email, password } = req.body;
+
+  // Normalize email (already validated by middleware)
+  const normalizedEmail = email.trim().toLowerCase();
 
   try {
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
-      .eq("email", email)
+      .eq("email", normalizedEmail)
       .single();
 
     if (error || !user) {
-      return res.status(401).json({ message: "Email atau Password salah!" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Email atau Password salah!" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    res.json({ message: "Login berhasil!", user });
+    // Generate JWT token
+    const token = generateToken(user);
+
+    // Remove password from response for security
+    const userResponse = { ...user };
+    delete userResponse.password;
+
+    // Set token as an HttpOnly cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // 'none' is REQUIRED for cross-origin Vercel deployments
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.json({
+      message: "Login successful!",
+      user: userResponse,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// === 6b. ROUTE UPDATE USER PROFILE ===
-app.put("/api/users/:id", async (req, res) => {
+// === 6a. ROUTE LOGOUT (Keluar) ===
+app.post("/api/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  });
+  res.json({ message: "Logout successful!" });
+});
+
+// === 6b. ROUTE UPDATE USER PROFILE (Protected) ===
+app.put("/api/users/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { full_name } = req.body;
 
@@ -191,8 +240,8 @@ app.get("/api/detail/:table/:id", async (req, res) => {
   }
 });
 
-// === 8. ROUTE ORDER / CHECKOUT ===
-app.post("/api/orders", async (req, res) => {
+// === 8. ROUTE ORDER / CHECKOUT (Protected) ===
+app.post("/api/orders", authMiddleware, async (req, res) => {
   const { user_id, full_name, address, city, postal_code, phone, total_price, items } = req.body;
 
   try {
@@ -235,8 +284,8 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-// === 8b. ROUTE GET USER ORDERS (Order History) ===
-app.get("/api/orders/user/:userId", async (req, res) => {
+// === 8b. ROUTE GET USER ORDERS (Protected) ===
+app.get("/api/orders/user/:userId", authMiddleware, async (req, res) => {
   const { userId } = req.params;
 
   try {
@@ -277,6 +326,23 @@ app.get("/api/sale", async (req, res) => {
 });
 
 // === 10. ROUTE REVIEWS ===
+
+// GET ALL REVIEWS (for product cards rating display)
+app.get("/api/all-reviews", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("id, product_id, product_type, rating")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET REVIEWS BY PRODUCT ID
 app.get("/api/reviews/:productId", async (req, res) => {
   const { productId } = req.params;
   const { type } = req.query; // Ambil type dari query param

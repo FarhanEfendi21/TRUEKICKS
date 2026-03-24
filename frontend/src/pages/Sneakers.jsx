@@ -1,104 +1,15 @@
-﻿import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SneakersBanner from "../components/SneakersBanner";
+import LazyImage from "../components/LazyImage";
 import { supabase } from "../lib/supabaseClient";
 import Pagination from "../components/Pagination";
+import ProductCard from "../components/ProductCard";
 
-const useScrollAnimation = () => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Jika elemen masuk ke layar, set isVisible jadi true
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
-    }
-
-    return () => {
-      if (elementRef.current) {
-        observer.unobserve(elementRef.current);
-      }
-    };
-  }, []);
-
-  return [elementRef, isVisible];
-};
-
-// =========================================
-// 2. KOMPONEN PRODUCT CARD (DENGAN ANIMASI)
-// =========================================
-const ProductCard = ({ item, navigate }) => {
-  const [ref, isVisible] = useScrollAnimation();
-
-  return (
-    <div
-      ref={ref}
-      onClick={() => navigate(`/product/sneakers/${item.id}`)}
-      className={`
-        bg-white p-4 rounded-3xl shadow-sm border border-gray-100 
-        hover:shadow-lg transition-all duration-700 ease-out 
-        hover:-translate-y-1 cursor-pointer h-full flex flex-col justify-between group
-        transform 
-        ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"}
-      `}
-    >
-      <div>
-        <div className="relative h-[180px] bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-gray-100 transition-colors overflow-hidden">
-          <span className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm text-gray-900 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-100 z-10">
-            {item.category}
-          </span>
-          <img
-            src={item.image_url}
-            className="w-[85%] h-[85%] object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3"
-            alt={item.name}
-            loading="lazy"
-          />
-        </div>
-        <h3 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#FF5500] transition-colors">
-          {item.name}
-        </h3>
-        <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-          {item.description || "Premium Sneakers"}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <p className="text-[#FF5500] font-bold text-sm md:text-base">
-          Rp {(item.price / 1000).toLocaleString()}K
-        </p>
-        <button className="w-9 h-9 bg-[#0F172A] text-white rounded-xl flex items-center justify-center hover:bg-black transition-colors shadow-md shadow-blue-900/20">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-};
+ 
 
 export default function Sneakers() {
   const location = useLocation();
@@ -110,6 +21,7 @@ export default function Sneakers() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeTypeFilter, setActiveTypeFilter] = useState(initialTypeFilter);
   const [showFilters, setShowFilters] = useState(false);
+  const [reviews, setReviews] = useState([]);
   const navigate = useNavigate();
 
   // --- DATA FILTER ---F
@@ -138,12 +50,25 @@ export default function Sneakers() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 16;
 
+  // --- STATE PRICE RANGE ---
+  const [priceRange, setPriceRange] = useState([0, 5000000]);
+  const minPrice = 0;
+  const maxPrice = 5000000;
+
+  // --- STATE SORT ---
+  const [sortOption, setSortOption] = useState("price-asc");
+  const sortOptions = [
+    { value: "price-asc", label: "Price ↑" },
+    { value: "price-desc", label: "Price ↓" },
+    { value: "reviewed", label: "Reviewed" },
+  ];
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage]);
 
   // --- FUNGSI UTAMA UNTUK FILTERING SIMULTAN ---
-  const applyFilter = (list, keyword, brand, shoeType) => {
+  const applyFilter = (list, keyword, brand, shoeType, priceMin, priceMax, sort) => {
     let result = list;
 
     // 1. Filter Berdasarkan Brand
@@ -176,6 +101,29 @@ export default function Sneakers() {
           (item.categories || "").toLowerCase().includes(lowerKeyword)
       );
     }
+
+    // 4. Filter Berdasarkan Price Range
+    result = result.filter(
+      (item) => item.price >= priceMin && item.price <= priceMax
+    );
+
+    // 5. Sort
+    switch (sort) {
+      case "price-asc":
+        result = [...result].sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        result = [...result].sort((a, b) => b.price - a.price);
+        break;
+      case "reviewed":
+        // Will be handled separately with reviews data
+        break;
+      case "newest":
+      default:
+        result = [...result].sort((a, b) => b.id - a.id);
+        break;
+    }
+
     return result;
   };
   // -------------------------------------
@@ -231,7 +179,10 @@ export default function Sneakers() {
           fetchedProducts,
           searchKeyword,
           activeCategory,
-          initialTypeFilter
+          initialTypeFilter,
+          priceRange[0],
+          priceRange[1],
+          sortOption
         );
         setFilteredProducts(initialFiltered);
       } catch (error) {
@@ -243,6 +194,21 @@ export default function Sneakers() {
     fetchProducts();
     // Pastikan dependency array sudah sesuai kebutuhan logic kamu
   }, [searchKeyword, initialTypeFilter, activeCategory]);
+
+  // --- USE EFFECT: FETCH ALL REVIEWS ---
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+        const response = await axios.get(`${API_URL}/api/all-reviews`);
+        console.log("Fetched reviews:", response.data);
+        setReviews(response.data || []);
+      } catch (error) {
+        console.error("Failed to fetch reviews:", error);
+      }
+    };
+    fetchReviews();
+  }, []);
 
   useEffect(() => {
     if (location.state) {
@@ -278,7 +244,10 @@ export default function Sneakers() {
       products,
       searchKeyword,
       category,
-      activeTypeFilter
+      activeTypeFilter,
+      priceRange[0],
+      priceRange[1],
+      sortOption
     );
     setFilteredProducts(result);
   };
@@ -287,8 +256,66 @@ export default function Sneakers() {
   const handleTypeFilter = (type) => {
     setActiveTypeFilter(type);
     setCurrentPage(1);
-    const result = applyFilter(products, searchKeyword, activeCategory, type);
+    const result = applyFilter(
+      products,
+      searchKeyword,
+      activeCategory,
+      type,
+      priceRange[0],
+      priceRange[1],
+      sortOption
+    );
     setFilteredProducts(result);
+  };
+
+  // Handler untuk Price Range
+  const handlePriceChange = (newRange) => {
+    setPriceRange(newRange);
+    setCurrentPage(1);
+    const result = applyFilter(
+      products,
+      searchKeyword,
+      activeCategory,
+      activeTypeFilter,
+      newRange[0],
+      newRange[1],
+      sortOption
+    );
+    setFilteredProducts(result);
+  };
+
+  // Handler untuk Sort
+  const handleSortChange = (sort) => {
+    setSortOption(sort);
+    setCurrentPage(1);
+    let result = applyFilter(
+      products,
+      searchKeyword,
+      activeCategory,
+      activeTypeFilter,
+      priceRange[0],
+      priceRange[1],
+      sort
+    );
+
+    // Handle "reviewed" sort separately (needs reviews data)
+    if (sort === "reviewed") {
+      result = [...result].sort((a, b) => {
+        const aReviews = reviews.filter(r => String(r.product_id) === String(a.id)).length;
+        const bReviews = reviews.filter(r => String(r.product_id) === String(b.id)).length;
+        return bReviews - aReviews; // Products with more reviews first
+      });
+    }
+
+    setFilteredProducts(result);
+  };
+
+  // Format price for display
+  const formatPriceLabel = (value) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}Jt`;
+    }
+    return `${(value / 1000).toFixed(0)}K`;
   };
 
   // --- LOGIKA PAGINATION ---
@@ -366,85 +393,194 @@ export default function Sneakers() {
             </button>
 
             {/* Tombol Reset (Opsional) - Tampil jika ada filter aktif */}
-            {(activeCategory !== "All" || activeTypeFilter !== "All Types") && (
+            {(activeCategory !== "All" || activeTypeFilter !== "All Types" || priceRange[0] !== minPrice || priceRange[1] !== maxPrice || sortOption !== "newest") && (
               <button
                 onClick={() => {
                   setActiveCategory("All");
                   setActiveTypeFilter("All Types");
+                  setPriceRange([minPrice, maxPrice]);
+                  setSortOption("newest");
+                  setCurrentPage(1);
+                  const result = applyFilter(products, searchKeyword, "All", "All Types", minPrice, maxPrice, "newest");
+                  setFilteredProducts(result);
                 }}
                 className="text-[10px] font-bold text-red-500 hover:text-red-700 underline underline-offset-2"
               >
-                Reset
+                Reset All
               </button>
             )}
           </div>
 
           {/* 2. EXPANDABLE FILTER PANEL */}
           <div
-            className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+            className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
               }`}
           >
-            <div className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-100/50 space-y-5 md:space-y-8">
-              {/* SECTION A: SHOE TYPE (Chips Style) */}
-              <div>
-                {/* UBAH 4: Margin judul dikurangi jadi mb-2 (sebelumnya mb-4) */}
-                <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-2 md:mb-4 flex items-center gap-2 pl-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
-                  Category
-                </h3>
-                {/* UBAH 5: Padding bawah scroll dikurangi jadi pb-2 (sebelumnya pb-4) */}
-                <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap gap-2.5 pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x">
-                  {shoeTypes.map((typeCat) => {
-                    const isActive = activeTypeFilter === typeCat;
-                    return (
-                      <button
-                        key={typeCat}
-                        onClick={() => handleTypeFilter(typeCat)}
-                        className={`
-                                    flex-shrink-0 snap-start
-                                    px-4 py-2 md:px-5 md:py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border
-                                    ${isActive
-                            ? "bg-black text-white border-black shadow-lg shadow-black/20 transform scale-105"
-                            : "bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100 hover:border-gray-200"
-                          }
-                                `}
-                      >
-                        {typeCat}
-                      </button>
-                    );
-                  })}
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-lg space-y-6">
+
+              {/* ROW 1: Category & Brand side by side on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* CATEGORY */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    Category
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {shoeTypes.map((typeCat) => {
+                      const isActive = activeTypeFilter === typeCat;
+                      return (
+                        <button
+                          key={typeCat}
+                          onClick={() => handleTypeFilter(typeCat)}
+                          className={`
+                            px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
+                            ${isActive
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                            }
+                          `}
+                        >
+                          {typeCat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* BRAND */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    Brand
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {brandCategories.map((cat) => {
+                      const isActive = activeCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => handleBrandFilter(cat)}
+                          className={`
+                            px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
+                            ${isActive
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                            }
+                          `}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Divider Halus */}
-              <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-100 to-transparent"></div>
+              {/* Divider */}
+              <div className="h-px w-full bg-gray-100"></div>
 
-              <div>
-                <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-2 md:mb-4 flex items-center gap-2 pl-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                  Brand
-                </h3>
+              {/* ROW 2: Price Range & Sort side by side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap gap-2 md:gap-3 pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x">
-                  {brandCategories.map((cat) => {
-                    const isActive = activeCategory === cat;
-                    return (
+                {/* PRICE RANGE */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    Price Range
+                  </h3>
+
+                  {/* Price Labels */}
+                  <div className="flex justify-between mb-3 text-sm font-bold text-gray-900">
+                    <span>Rp {formatPriceLabel(priceRange[0])}</span>
+                    <span>Rp {formatPriceLabel(priceRange[1])}</span>
+                  </div>
+
+                  {/* Slider Track */}
+                  <div className="relative h-2 bg-gray-200 rounded-full mb-4">
+                    <div
+                      className="absolute h-full bg-gray-900 rounded-full"
+                      style={{
+                        left: `${(priceRange[0] / maxPrice) * 100}%`,
+                        right: `${100 - (priceRange[1] / maxPrice) * 100}%`
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={minPrice}
+                      max={maxPrice}
+                      step={100000}
+                      value={priceRange[0]}
+                      onChange={(e) => {
+                        const value = Math.min(Number(e.target.value), priceRange[1] - 100000);
+                        handlePriceChange([value, priceRange[1]]);
+                      }}
+                      className="absolute w-full h-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+                    />
+                    <input
+                      type="range"
+                      min={minPrice}
+                      max={maxPrice}
+                      step={100000}
+                      value={priceRange[1]}
+                      onChange={(e) => {
+                        const value = Math.max(Number(e.target.value), priceRange[0] + 100000);
+                        handlePriceChange([priceRange[0], value]);
+                      }}
+                      className="absolute w-full h-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+                    />
+                  </div>
+
+                  {/* Quick Price Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "< 1Jt", range: [0, 1000000] },
+                      { label: "1-2Jt", range: [1000000, 2000000] },
+                      { label: "2-3Jt", range: [2000000, 3000000] },
+                      { label: "> 3Jt", range: [3000000, 5000000] },
+                      { label: "All", range: [0, 5000000] },
+                    ].map((item) => (
                       <button
-                        key={cat}
-                        onClick={() => handleBrandFilter(cat)}
-                        className={`
-                        flex-shrink-0 snap-start
-                        relative px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold transition-all duration-200 border whitespace-nowrap
-                        ${isActive
-                            ? "bg-[#FF5500] text-white border-[#FF5500] shadow-md shadow-orange-500/20 transform scale-[1.02]"
-                            : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-900"
-                          }
-                    `}
+                        key={item.label}
+                        onClick={() => handlePriceChange(item.range)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${priceRange[0] === item.range[0] && priceRange[1] === item.range[1]
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                          }`}
                       >
-                        {cat}
+                        {item.label}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+
+                {/* SORT BY */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    Sort By
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {sortOptions.map((option) => {
+                      const isActive = sortOption === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => handleSortChange(option.value)}
+                          className={`
+                            px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
+                            ${isActive
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                            }
+                          `}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -452,21 +588,33 @@ export default function Sneakers() {
         </div>
         {/* GRID PRODUK */}
         {loading ? (
-          // SKELETON LOADING (Fix: Menggunakan div, bukan ProductCard)
+          // SKELETON LOADING (Enhanced)
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="h-[300px] bg-gray-200 rounded-3xl animate-pulse"
-              ></div>
+                className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-3"
+              >
+                <div className="w-full h-[180px] bg-gray-200 rounded-2xl animate-pulse"></div>
+                <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div className="flex justify-between items-center mt-4">
+                  <div className="w-1/3 h-5 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+                </div>
+              </div>
             ))}
           </div>
         ) : currentItems.length > 0 ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-32">
               {currentItems.map((item) => (
-                // REAL PRODUCT CARD (Sudah ada data 'item')
-                <ProductCard key={item.id} item={item} navigate={navigate} />
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  navigate={navigate}
+                  reviews={reviews}
+                />
               ))}
             </div>
             {/* === PAGINATION CONTROLS === */}

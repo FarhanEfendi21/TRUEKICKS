@@ -5,117 +5,10 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ApparelBanner from "../components/ApparelBanner";
 import Pagination from "../components/Pagination";
+import ProductCard from "../components/ProductCard";
+import { supabase } from "../lib/supabaseClient";
 
-// =========================================
-// 1. CUSTOM HOOK: SCROLL ANIMATION
-// =========================================
-const useScrollAnimation = () => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Trigger animasi saat 10% elemen masuk layar
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "50px", // Pre-load sedikit agar smooth di mobile
-      }
-    );
-
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
-    }
-
-    return () => {
-      if (elementRef.current) observer.disconnect();
-    };
-  }, []);
-
-  return [elementRef, isVisible];
-};
-
-// =========================================
-// 2. KOMPONEN PRODUCT CARD (DENGAN DELAY)
-// =========================================
-const ProductCard = ({ item, navigate, index }) => {
-  const [ref, isVisible] = useScrollAnimation();
-
-  // Hitung delay: item ke-1 = 0ms, item ke-2 = 100ms, dst (maksimal 500ms agar tidak terlalu lama)
-  const delay = (index % 6) * 100;
-
-  return (
-    <div
-      ref={ref}
-      onClick={() => navigate(`/product/apparel/${item.id}`)}
-      style={{ transitionDelay: `${delay}ms` }} // <--- MAGIC: Ini yang bikin efek berurutan
-      className={`
-        bg-white p-4 rounded-3xl shadow-sm border border-gray-100 
-        hover:shadow-lg transition-all duration-700 ease-out 
-        hover:-translate-y-1 cursor-pointer h-full flex flex-col justify-between group
-        transform will-change-transform
-        ${isVisible
-          ? "opacity-100 translate-y-0 scale-100"
-          : "opacity-0 translate-y-12 scale-95" // Ubah jarak sedikit agar lebih smooth di HP
-        }
-      `}
-    >
-      <div>
-        <div className="relative h-[220px] bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-gray-100 transition-colors overflow-hidden">
-          <span className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm text-gray-900 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-100 z-10">
-            {item.category}
-          </span>
-          <img
-            src={item.image_url}
-            className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
-            alt={item.name}
-            loading="lazy"
-            onError={(e) => {
-              e.target.src =
-                "https://via.placeholder.com/300x300?text=No+Image";
-            }}
-          />
-        </div>
-
-        <h3 className="font-bold text-gray-900 text-sm line-clamp-2 min-h-[40px] group-hover:text-[#FF5500] transition-colors">
-          {item.name}
-        </h3>
-      </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <p className="text-[#FF5500] font-bold text-sm md:text-base">
-          Rp {(item.price / 1000).toLocaleString()}K
-        </p>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          className="w-9 h-9 bg-[#0F172A] text-white rounded-xl flex items-center justify-center hover:bg-black transition-colors shadow-md shadow-blue-900/20"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-};
+ 
 
 // =========================================
 // MAIN COMPONENT: APPAREL
@@ -130,12 +23,26 @@ export default function Apparel() {
 
   // --- BARU: State untuk menyembunyikan/menampilkan filter ---
   const [showFilters, setShowFilters] = useState(false);
+  const [reviews, setReviews] = useState([]);
 
   const navigate = useNavigate();
 
   // --- STATE PAGINATION ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 16; // Batas 16 item per halaman
+
+  // --- STATE PRICE RANGE ---
+  const [priceRange, setPriceRange] = useState([0, 5000000]);
+  const minPrice = 0;
+  const maxPrice = 5000000;
+
+  // --- STATE SORT ---
+  const [sortOption, setSortOption] = useState("price-asc");
+  const sortOptions = [
+    { value: "price-asc", label: "Price ↑" },
+    { value: "price-desc", label: "Price ↓" },
+    { value: "reviewed", label: "Reviewed" },
+  ];
 
   // Filter Tab
   const categories = [
@@ -167,6 +74,20 @@ export default function Apparel() {
     fetchApparel();
   }, []);
 
+  // --- USE EFFECT: FETCH ALL REVIEWS ---
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+        const response = await axios.get(`${API_URL}/api/all-reviews`);
+        setReviews(response.data || []);
+      } catch (error) {
+        console.error("Failed to fetch reviews:", error);
+      }
+    };
+    fetchReviews();
+  }, []);
+
   // Handle location state (from search bar)
   useEffect(() => {
     if (location.state?.keyword) {
@@ -175,7 +96,7 @@ export default function Apparel() {
     }
   }, [location.state]);
 
-  // Apply filter when keyword or category changes
+  // Apply filter when any filter criteria changes
   useEffect(() => {
     let result = products;
 
@@ -192,14 +113,67 @@ export default function Apparel() {
       );
     }
 
+    // Filter by price range
+    result = result.filter(
+      (item) => item.price >= priceRange[0] && item.price <= priceRange[1]
+    );
+
+    // Sort
+    switch (sortOption) {
+      case "price-asc":
+        result = [...result].sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        result = [...result].sort((a, b) => b.price - a.price);
+        break;
+      case "reviewed":
+        result = [...result].sort((a, b) => {
+          const aReviews = reviews.filter(r => String(r.product_id) === String(a.id)).length;
+          const bReviews = reviews.filter(r => String(r.product_id) === String(b.id)).length;
+          return bReviews - aReviews;
+        });
+        break;
+      default:
+        break;
+    }
+
     setFilteredProducts(result);
     setCurrentPage(1);
-  }, [products, activeCategory, searchKeyword]);
+  }, [products, activeCategory, searchKeyword, priceRange, sortOption, reviews]);
 
   // Filter by category tab
   const handleFilter = (category) => {
     setActiveCategory(category);
     setSearchKeyword(""); // Clear search when changing category
+    setCurrentPage(1);
+  };
+
+  // Handler untuk Price Range
+  const handlePriceChange = (newRange) => {
+    setPriceRange(newRange);
+    setCurrentPage(1);
+  };
+
+  // Handler untuk Sort
+  const handleSortChange = (sort) => {
+    setSortOption(sort);
+    setCurrentPage(1);
+  };
+
+  // Format price for display
+  const formatPriceLabel = (value) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}Jt`;
+    }
+    return `${(value / 1000).toFixed(0)}K`;
+  };
+
+  // Handler untuk Reset All Filters
+  const handleResetFilters = () => {
+    setActiveCategory("All");
+    setPriceRange([0, maxPrice]);
+    setSortOption("price-asc");
+    setSearchKeyword("");
     setCurrentPage(1);
   };
 
@@ -272,18 +246,26 @@ export default function Apparel() {
                 </span>
               </div>
             </button>
+
+            {/* Reset All Button */}
+            <button
+              onClick={handleResetFilters}
+              className="text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
+            >
+              Reset All
+            </button>
           </div>
 
           {/* 3. EXPANDABLE PANEL (Responsive Scroll) */}
           <div
-            className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
+            className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
               }`}
           >
             <div className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-100/50">
               {/* Header Kategori */}
               <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-2 md:mb-4 flex items-center gap-2 pl-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
-                Apparel Categories
+                Category
               </h3>
               <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap gap-2.5 pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x">
                 {categories.map((cat) => {
@@ -308,6 +290,113 @@ export default function Apparel() {
                   );
                 })}
               </div>
+
+              {/* PRICE RANGE & SORT BY - Row Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-100">
+                {/* PRICE RANGE */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+                    Price Range
+                  </h3>
+
+                  {/* Price Labels */}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-bold text-gray-900">Rp {formatPriceLabel(priceRange[0])}</span>
+                    <span className="text-sm font-bold text-gray-900">Rp {formatPriceLabel(priceRange[1])}</span>
+                  </div>
+
+                  {/* Dual Range Slider */}
+                  <div className="relative h-2 mb-4">
+                    <div className="absolute w-full h-full bg-gray-200 rounded-full"></div>
+                    <div
+                      className="absolute h-full bg-gradient-to-r from-gray-800 to-black rounded-full"
+                      style={{
+                        left: `${(priceRange[0] / maxPrice) * 100}%`,
+                        right: `${100 - (priceRange[1] / maxPrice) * 100}%`,
+                      }}
+                    ></div>
+                    {/* Left Thumb */}
+                    <div
+                      className="absolute w-4 h-4 bg-white border-2 border-gray-800 rounded-full shadow-md -translate-y-1/4 cursor-pointer"
+                      style={{ left: `calc(${(priceRange[0] / maxPrice) * 100}% - 8px)` }}
+                    ></div>
+                    {/* Right Thumb */}
+                    <div
+                      className="absolute w-4 h-4 bg-white border-2 border-gray-800 rounded-full shadow-md -translate-y-1/4 cursor-pointer"
+                      style={{ left: `calc(${(priceRange[1] / maxPrice) * 100}% - 8px)` }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={minPrice}
+                      max={maxPrice}
+                      step={50000}
+                      value={priceRange[0]}
+                      onChange={(e) => {
+                        const value = Math.min(Number(e.target.value), priceRange[1] - 50000);
+                        handlePriceChange([value, priceRange[1]]);
+                      }}
+                      className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={minPrice}
+                      max={maxPrice}
+                      step={50000}
+                      value={priceRange[1]}
+                      onChange={(e) => {
+                        const value = Math.max(Number(e.target.value), priceRange[0] + 50000);
+                        handlePriceChange([priceRange[0], value]);
+                      }}
+                      className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                  </div>
+
+                  {/* Quick Price Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "< 1Jt", range: [0, 1000000] },
+                      { label: "1-2Jt", range: [1000000, 2000000] },
+                      { label: "2-3Jt", range: [2000000, 3000000] },
+                      { label: "> 3Jt", range: [3000000, maxPrice] },
+                      { label: "All", range: [0, maxPrice] },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => handlePriceChange(preset.range)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${priceRange[0] === preset.range[0] && priceRange[1] === preset.range[1]
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                          }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SORT BY */}
+                <div>
+                  <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+                    Sort By
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSortChange(option.value)}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${sortOption === option.value
+                          ? "bg-black text-white border-black shadow-lg shadow-black/20"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -318,15 +407,32 @@ export default function Apparel() {
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="h-[300px] bg-gray-200 rounded-3xl animate-pulse"
-              ></div>
+                className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-3"
+              >
+                <div className="w-full h-[220px] bg-gray-200 rounded-2xl animate-pulse"></div>
+                <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="flex items-center gap-1 mt-1">
+                   <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse"></div>
+                   <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                <div className="flex justify-between items-center mt-4">
+                   <div className="w-1/3 h-5 bg-gray-200 rounded animate-pulse"></div>
+                   <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+                </div>
+              </div>
             ))}
           </div>
         ) : currentItems.length > 0 ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16">
-              {currentItems.map((item) => (
-                <ProductCard key={item.id} item={item} navigate={navigate} />
+              {currentItems.map((item, index) => (
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  reviews={reviews}
+                  productType="apparel"
+                />
               ))}
             </div>
 

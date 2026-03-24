@@ -4,6 +4,7 @@ import { HiOutlineHeart, HiHeart } from "react-icons/hi2";
 
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
+import { logout } from "../lib/api";
 import SearchBar from "./SearchBar";
 
 
@@ -117,8 +118,8 @@ export default function Navbar() {
   // -----------------------------------------------
   // FUNCTIONS
   // -----------------------------------------------
-  const handleLogout = () => {
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    await logout();
     setUser(null);
 
     refreshCart();
@@ -257,12 +258,12 @@ export default function Navbar() {
                  `}
               >
                 {/* Container Icon dengan Animasi */}
-                <div className="relative transition-transform duration-300 group-hover:scale-110 group-active:scale-95">
+                <div className="relative transition-all duration-300 group-hover:scale-[1.15] group-hover:-translate-y-0.5 group-active:scale-95">
                   {/* Tampilkan Hati Penuh jika ada isinya atau sedang dibuka, jika kosong tampilkan garis */}
                   {wishlistItems.length > 0 || showWishlist ? (
                     <HiHeart className="w-6 h-6 text-[#FF5500] drop-shadow-sm" />
                   ) : (
-                    <HiOutlineHeart className="w-6 h-6 stroke-[2]" />
+                    <HiOutlineHeart className="w-6 h-6 stroke-[2] dark:text-gray-300" />
                   )}
                 </div>
 
@@ -281,10 +282,10 @@ export default function Navbar() {
 
               {/* === DROPDOWN WISHLIST (MODERNIZED) === */}
               {showWishlist && (
-                <div className="absolute top-full right-0 mt-4 w-80 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5">
+                <div className="absolute top-full right-0 mt-4 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5 dark:ring-white/5">
                   {/* Header Dropdown */}
-                  <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-black text-sm uppercase tracking-wide text-gray-800">
+                  <div className="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/80">
+                    <h3 className="font-black text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200">
                       My Wishlist{" "}
                       <span className="text-[#FF5500]">
                         ({wishlistItems.length})
@@ -292,14 +293,14 @@ export default function Navbar() {
                     </h3>
                     <button
                       onClick={() => setShowWishlist(false)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-400 transition-colors"
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-400 transition-colors"
                     >
                       ✕
                     </button>
                   </div>
 
                   {/* List Item */}
-                  <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                  <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800">
                     {wishlistItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
@@ -320,23 +321,23 @@ export default function Navbar() {
                             navigate(`/product/${item.productType || 'sneakers'}/${item.id}`);
                             setShowWishlist(false);
                           }}
-                          className="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer group transition-colors"
+                          className="flex gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl cursor-pointer group transition-colors"
                         >
                           {/* Gambar Kecil */}
-                          <div className="w-14 h-14 bg-white border border-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-14 h-14 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img
                               src={item.image}
-                              className="w-[85%] object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
+                              className="w-[85%] object-contain mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform duration-500"
                               alt={item.name}
                             />
                           </div>
 
                           {/* Info */}
                           <div className="flex-grow min-w-0 flex flex-col justify-center">
-                            <p className="font-bold text-xs text-gray-900 truncate">
+                            <p className="font-bold text-xs text-gray-900 dark:text-white truncate">
                               {item.name}
                             </p>
-                            <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">
                               Rp {(item.price / 1000).toLocaleString()}K
                             </p>
                           </div>
@@ -393,27 +394,29 @@ export default function Navbar() {
               className="hidden md:block group relative p-2 rounded-full hover:bg-orange-50 transition-all duration-300"
             >
               {/* Icon */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className={`w-6 h-6 transition-colors ${totalItems > 0
-                  ? "text-[#FF5500] fill-orange-100"
-                  : "text-gray-600 group-hover:text-black"
-                  }`}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                />
-              </svg>
+              <div className="relative transition-all duration-300 group-hover:scale-[1.15] group-hover:-translate-y-0.5 group-active:scale-95">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className={`w-6 h-6 transition-colors ${totalItems > 0
+                    ? "text-[#FF5500] fill-orange-100"
+                    : "text-gray-600 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white"
+                    }`}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                  />
+                </svg>
+              </div>
 
               {/* Badge Modern */}
               {totalItems > 0 && (
-                <span className="absolute top-0 right-0 bg-[#FF5500] text-white text-[10px] font-bold h-5 min-w-[20px] px-1 flex items-center justify-center rounded-full border-2 border-white shadow-sm transform group-hover:scale-110 transition-transform">
+                <span className="absolute top-0 right-0 bg-[#FF5500] text-white text-[10px] font-bold h-5 min-w-[20px] px-1 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900 shadow-sm transform group-hover:scale-125 transition-transform">
                   {totalItems}
                 </span>
               )}
@@ -459,26 +462,26 @@ export default function Navbar() {
 
                 {/* DROPDOWN MENU */}
                 {showUserMenu && (
-                  <div className="absolute top-full right-0 mt-4 w-48 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5">
+                  <div className="absolute top-full right-0 mt-4 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5 dark:ring-white/5">
                     <div className="p-2 space-y-1">
                       <Link
                         to="/profile"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-black rounded-xl transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
                         <span>👤</span> My Profile
                       </Link>
                       <Link
                         to="/orders"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-black rounded-xl transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
                         <span>📦</span> My Orders
                       </Link>
-                      <div className="h-px bg-gray-100 my-1"></div>
+                      <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-left"
                       >
                         <span>🚪</span> Logout
                       </button>

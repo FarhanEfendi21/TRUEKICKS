@@ -6,6 +6,10 @@ import { WishlistProvider } from "./Context/WishlistContext.jsx";
 import { ThemeProvider } from "./Context/ThemeContext.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import Layout from "./components/Layout.jsx";
+import axios from "axios";
+
+// === GLOBAL AXIOS CONFIG FOR HTTPONLY COOKIES ===
+axios.defaults.withCredentials = true;
 
 // === LAZY LOADING PAGES (Code Splitting) ===
 // Halaman berat di-load hanya saat dibutuhkan

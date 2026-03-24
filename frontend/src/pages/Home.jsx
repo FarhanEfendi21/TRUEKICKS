@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; //
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -55,6 +56,7 @@ const AnimatedImage = ({ src, alt, className }) => {
       ref={ref}
       src={src}
       alt={alt}
+      loading="lazy"
       className={`${className} transition-all duration-1000 ease-out will-change-transform
         ${isVisible
           ? "opacity-100 translate-y-0 scale-100 blur-0 grayscale-0"
@@ -65,32 +67,24 @@ const AnimatedImage = ({ src, alt, className }) => {
 };
 
 export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef(null);
   const topPicksRef = useRef(null);
   const blackCollectionRef = useRef(null);
 
-  // 1. FETCH DATA DARI API SUPABASE
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+  // 1. FETCH DATA DARI API SUPABASE WITH REACT QUERY
+  const fetchProducts = async () => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+    const { data } = await axios.get(`${API_URL}/api/products`);
+    return data;
+  };
 
-        console.log("Fetching from:", API_URL);
-
-        const response = await axios.get(`${API_URL}/api/products`);
-        setProducts(response.data);
-      } catch (error) {
-        console.error("Gagal mengambil data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey: ['homeProducts'],
+    queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // 2. MEMBAGI DATA (Slicing)
   const topPicks = products.slice(0, 3).concat(products.slice(13, 17));
@@ -135,160 +129,169 @@ export default function Home() {
       <Navbar />
 
       {/* ===========================
-          1. HERO SECTION - MINIMALIST & ELEGANT
+          1. HERO SECTION - MODERN & ENGAGING
          =========================== */}
       <section className="relative w-full min-h-[85vh] lg:min-h-screen flex items-center justify-center pt-20 pb-12 px-4 overflow-hidden">
-        {/* Clean Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900"></div>
+        {/* Animated Gradient Background */}
+        <div className="absolute inset-0 hero-gradient-bg dark:bg-gradient-to-b dark:from-gray-900 dark:via-gray-950 dark:to-gray-900"></div>
 
-        {/* Subtle Accent */}
+        {/* Decorative Floating Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Floating Circles */}
+          <div className="absolute top-20 left-[10%] w-72 h-72 bg-gradient-to-br from-orange-200/30 to-orange-100/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-[10%] w-96 h-96 bg-gradient-to-br from-purple-200/20 to-blue-100/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-orange-100/20 to-transparent rounded-full blur-3xl"></div>
+
+          {/* Subtle Grid Pattern */}
+          <div className="absolute inset-0 opacity-[0.02]" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, gray 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+
+        {/* Accent Line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#FF5500] to-transparent opacity-60"></div>
 
         {/* Hero Content Container */}
         <div className="relative z-10 w-full max-w-6xl mx-auto">
 
-          {/* Main Content - Centered */}
+          {/* Main Content - Centered with Staggered Animations */}
           <div className="text-center space-y-6 lg:space-y-8">
 
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-full text-xs font-medium tracking-wide">
-              <span className="w-1.5 h-1.5 bg-[#FF5500] rounded-full animate-pulse"></span>
+            {/* Badge - Animated */}
+            <div className="inline-flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm text-white px-5 py-2.5 rounded-full text-xs font-medium tracking-wide shadow-xl shadow-gray-900/20 animate-fade-in-up opacity-0" style={{ animationDelay: '0.1s' }}>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5500] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5500]"></span>
+              </span>
               New Collection 2025
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9]">
-              <span className="block text-gray-900 dark:text-white">Step Into</span>
-              <span className="block text-[#FF5500]">Greatness</span>
+            {/* Main Headline - Enhanced with Gradient Text */}
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s' }}>
+              <span className="block text-gray-900 dark:text-white drop-shadow-sm">Step Into</span>
+              <span className="block animate-gradient-text">Greatness</span>
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg max-w-md mx-auto leading-relaxed">
-              Premium authentic sneakers, curated for those who demand the best.
+            {/* Subtitle - With better readability */}
+            <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg md:text-xl max-w-lg mx-auto leading-relaxed animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s' }}>
+              Premium authentic sneakers, curated for those who demand the best in style and quality.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            {/* CTA Buttons - Enhanced with animations */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s' }}>
               <button
                 onClick={() => scrollToSection(topPicksRef)}
-                className="w-full sm:w-auto px-8 py-4 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all hover:scale-105 shadow-lg shadow-gray-900/20"
+                className="group relative w-full sm:w-auto px-10 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-xl shadow-gray-900/30 hover:shadow-2xl hover:shadow-gray-900/40"
               >
-                Shop Now
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  Shop Now
+                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-[#FF5500] to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
+
               <button
                 onClick={() => scrollToSection(blackCollectionRef)}
-                className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-semibold rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-gray-900 dark:hover:border-gray-500 transition-all"
+                className="group w-full sm:w-auto px-10 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-900 dark:text-white font-bold rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-[#FF5500] dark:hover:border-[#FF5500] transition-all duration-300 hover:shadow-lg"
               >
-                Explore
+                <span className="flex items-center justify-center gap-2">
+                  Explore
+                  <svg className="w-5 h-5 transition-transform group-hover:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </span>
               </button>
             </div>
           </div>
 
-          {/* ========================================================
-              --- [MOBILE ONLY] Brand Marquee + Trust Badges ---
-              ======================================================== */}
-          <div className="lg:hidden mt-10">
-            {/* Brand Marquee - Dark Theme */}
-            <div className="relative w-full bg-gray-900 py-3 mb-8 overflow-hidden">
+          {/* Mobile Brand Marquee + Trust Badges */}
+          <div className="lg:hidden mt-10 animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s' }}>
+            {/* Brand Marquee */}
+            <div className="relative w-full bg-gray-900/95 backdrop-blur-sm py-3 mb-8 overflow-hidden rounded-2xl mx-4">
               <div className="flex w-max animate-marquee">
-                {/* Part 1 */}
-                <div className="flex gap-8 items-center text-white font-bold tracking-widest text-sm px-4">
-                  <span>NIKE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>ADIDAS</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>NEW BALANCE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>PUMA</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>CONVERSE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>ASICS</span>
-                  <span className="text-[#FF5500]">✦</span>
-                </div>
-                {/* Part 2 - Duplicate for seamless loop */}
-                <div className="flex gap-8 items-center text-white font-bold tracking-widest text-sm px-4">
-                  <span>NIKE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>ADIDAS</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>NEW BALANCE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>PUMA</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>CONVERSE</span>
-                  <span className="text-[#FF5500]">✦</span>
-                  <span>ASICS</span>
-                  <span className="text-[#FF5500]">✦</span>
-                </div>
+                {[1, 2].map((_, idx) => (
+                  <div key={idx} className="flex gap-8 items-center text-white font-bold tracking-widest text-sm px-4">
+                    <span>NIKE</span>
+                    <span className="text-[#FF5500]">✦</span>
+                    <span>ADIDAS</span>
+                    <span className="text-[#FF5500]">✦</span>
+                    <span>NEW BALANCE</span>
+                    <span className="text-[#FF5500]">✦</span>
+                    <span>PUMA</span>
+                    <span className="text-[#FF5500]">✦</span>
+                    <span>CONVERSE</span>
+                    <span className="text-[#FF5500]">✦</span>
+                    <span>ASICS</span>
+                    <span className="text-[#FF5500]">✦</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Trust Badges - Simple like Desktop */}
+            {/* Trust Badges */}
             <div className="flex flex-wrap justify-center gap-4 px-4">
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <svg className="w-4 h-4 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                100% Authentic
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <svg className="w-4 h-4 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Free Shipping
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <svg className="w-4 h-4 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                30 Days Return
-              </div>
+              {[
+                { icon: "M5 13l4 4L19 7", text: "100% Authentic" },
+                { icon: "M5 13l4 4L19 7", text: "Free Shipping" },
+                { icon: "M5 13l4 4L19 7", text: "30 Days Return" }
+              ].map((badge, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                  <svg className="w-4 h-4 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={badge.icon} />
+                  </svg>
+                  {badge.text}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* ========================================================
-              --- [DESKTOP ONLY] Featured Product Showcase ---
-              ======================================================== */}
-          <div className="hidden lg:block relative mt-16">
-            {/* Product Image */}
+          {/* Desktop Featured Product Showcase */}
+          <div className="hidden lg:block relative mt-16 animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s' }}>
+            {/* Product Image with Float Animation */}
             <div className="relative flex justify-center">
               <div className="relative group cursor-pointer">
-                {/* Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-200 to-orange-100 rounded-full blur-3xl opacity-0 group-hover:opacity-60 transition-all duration-700 scale-75 group-hover:scale-100"></div>
+                {/* Ambient Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-300/40 to-orange-200/30 rounded-full blur-[80px] scale-75 group-hover:scale-100 transition-all duration-700"></div>
 
+                {/* Shadow on Ground */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[60px] bg-black/10 rounded-[100%] blur-xl group-hover:w-[450px] transition-all duration-500"></div>
+
+                {/* Floating Sneaker Image */}
                 <img
                   src={heroImage}
                   alt="Nike P-6000"
-                  className="relative w-[550px] -rotate-12 drop-shadow-2xl transition-all duration-700 ease-out group-hover:scale-105 group-hover:-rotate-6"
+                  className="relative w-[550px] drop-shadow-2xl animate-float transition-all duration-500 group-hover:drop-shadow-[0_40px_80px_rgba(255,85,0,0.3)]"
                 />
               </div>
 
-              {/* Floating Card */}
+              {/* Floating Product Card */}
               <div
                 className="absolute top-0 right-[5%] xl:right-[15%] cursor-pointer group/card"
                 onClick={() => navigate("/product/sneakers/3")}
               >
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 w-64 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-5 rounded-3xl shadow-2xl border border-white/50 dark:border-gray-700/50 w-64 transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_30px_60px_-15px_rgba(255,85,0,0.25)]">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="text-xs text-gray-400 font-medium mb-1">Featured</p>
                       <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">Nike P-6000 Metallic Silver</h3>
                     </div>
-                    <span className="text-xs bg-[#FF5500] text-white px-2 py-1 rounded-lg font-medium">-19%</span>
+                    <span className="text-xs bg-gradient-to-r from-[#FF5500] to-orange-600 text-white px-2.5 py-1 rounded-lg font-bold shadow-lg shadow-orange-500/30">-19%</span>
                   </div>
 
                   <div className="flex items-center gap-1 mb-3">
-                    <div className="flex text-[#FF5500] text-xs">★★★★★</div>
-                    <span className="text-xs text-gray-400">(4.9)</span>
+                    <div className="flex text-amber-400 text-xs">★★★★★</div>
+                    <span className="text-xs text-gray-400 font-medium">(4.9)</span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
                     <div>
                       <p className="text-xs text-gray-400 line-through">Rp 1.800.000</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">Rp 1.460.000</p>
+                      <p className="text-lg font-black text-gray-900 dark:text-white">Rp 1.460.000</p>
                     </div>
-                    <button className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center hover:bg-[#FF5500] transition-colors">
+                    <button className="w-11 h-11 bg-gray-900 text-white rounded-xl flex items-center justify-center hover:bg-[#FF5500] transition-all duration-300 shadow-lg hover:shadow-orange-500/30 hover:scale-110">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
@@ -299,25 +302,24 @@ export default function Home() {
             </div>
 
             {/* Desktop Trust Badges */}
-            <div className="flex justify-center gap-8 mt-12">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <svg className="w-5 h-5 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                100% Authentic
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <svg className="w-5 h-5 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Free Shipping
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <svg className="w-5 h-5 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                30 Days Return
-              </div>
+            <div className="flex justify-center gap-8 mt-16">
+              {[
+                { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", text: "100% Authentic", desc: "Guaranteed Original" },
+                { icon: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4", text: "Free Shipping", desc: "Orders Above 1Jt" },
+                { icon: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15", text: "Easy Returns", desc: "30 Days Policy" }
+              ].map((badge, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-5 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-[#FF5500]/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#FF5500] to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={badge.icon} />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{badge.text}</p>
+                    <p className="text-xs text-gray-500">{badge.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
