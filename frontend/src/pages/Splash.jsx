@@ -43,7 +43,7 @@ export default function Splash() {
 
     // Navigate after animation
     const timer = setTimeout(() => {
-      navigate("/login");
+      navigate("/home");
     }, 3000);
 
     return () => {
