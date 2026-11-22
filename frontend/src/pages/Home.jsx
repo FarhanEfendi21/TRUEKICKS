@@ -1,12 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; //
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useLenis } from "lenis/react";
+import toast from "react-hot-toast";
+import api from "../lib/api";
+import { useWishlist } from "../Context/WishlistContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import BackInBlackBanner from "../components/BackInBlackBanner";
+import HeroSneakerSlider from "../components/HeroSneakerSlider";
 
-import heroImage from "../assets/p6000-silver.png";
 import nikeLogo from "../assets/nike.png";
 import adidasLogo from "../assets/adidas.png";
 import newBalanceLogo from "../assets/newbalance.png";
@@ -69,14 +72,45 @@ const AnimatedImage = ({ src, alt, className }) => {
 export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
+  const lenis = useLenis();
   const scrollRef = useRef(null);
   const topPicksRef = useRef(null);
   const blackCollectionRef = useRef(null);
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+
+  const handleWishlistToggle = (e, item) => {
+    e.stopPropagation();
+    const storedUser = localStorage.getItem("user");
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isGuest =
+      !parsedUser ||
+      !parsedUser.id ||
+      (parsedUser.email && parsedUser.email.includes("guest"));
+
+    if (isGuest) {
+      toast.error("Please log in to save items to your Wishlist.");
+      navigate("/login");
+      return;
+    }
+
+    if (isInWishlist(item.id, "products")) {
+      removeFromWishlist(item.id, "products");
+      toast.success(`${item.name} removed from Wishlist!`);
+    } else {
+      addToWishlist({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image_url,
+        productType: "products",
+      });
+      toast.success(`${item.name} added to Wishlist!`);
+    }
+  };
 
   // 1. FETCH DATA DARI API SUPABASE WITH REACT QUERY
   const fetchProducts = async () => {
-    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-    const { data } = await axios.get(`${API_URL}/api/products`);
+    const { data } = await api.get("/api/products");
     return data;
   };
 
@@ -111,217 +145,41 @@ export default function Home() {
 
       if (element) {
         setTimeout(() => {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (lenis) {
+            lenis.scrollTo(element, { offset: -80 });
+          } else {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         }, 100);
       }
     }
-  }, [location]);
-
-  // Fungsi Scroll ke Section Tertentu
-  const scrollToSection = (ref) => {
-    if (ref.current) {
-      ref.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
+  }, [location, lenis]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 font-poppins overflow-x-hidden transition-colors duration-300">
       <Navbar />
 
       {/* ===========================
-          1. HERO SECTION - MODERN & ENGAGING
+          1. HERO SECTION - 5-SNEAKER SHOWCASE SLIDER
          =========================== */}
-      <section className="relative w-full min-h-[85vh] lg:min-h-screen flex items-center justify-center pt-20 pb-12 px-4 overflow-hidden">
-        {/* Animated Gradient Background */}
-        <div className="absolute inset-0 hero-gradient-bg dark:bg-gradient-to-b dark:from-gray-900 dark:via-gray-950 dark:to-gray-900"></div>
-
-        {/* Decorative Floating Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Floating Circles */}
-          <div className="absolute top-20 left-[10%] w-72 h-72 bg-gradient-to-br from-orange-200/30 to-orange-100/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-[10%] w-96 h-96 bg-gradient-to-br from-purple-200/20 to-blue-100/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-orange-100/20 to-transparent rounded-full blur-3xl"></div>
-
-          {/* Subtle Grid Pattern */}
-          <div className="absolute inset-0 opacity-[0.02]" style={{
-            backgroundImage: 'radial-gradient(circle at 1px 1px, gray 1px, transparent 0)',
-            backgroundSize: '40px 40px'
-          }}></div>
+      <section className="relative w-full min-h-[88vh] lg:min-h-screen flex items-center justify-center pt-24 pb-14 px-4 overflow-hidden bg-gradient-to-b from-white via-gray-50/70 to-white dark:from-gray-950 dark:via-gray-950 dark:to-gray-900 transition-colors duration-300">
+        {/* Subtle studio backdrop vignette */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[420px] bg-gradient-to-r from-gray-200/35 via-white/40 to-gray-200/35 dark:from-white/[0.04] dark:via-white/[0.02] dark:to-white/[0.04] rounded-full blur-3xl" />
         </div>
 
-        {/* Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#FF5500] to-transparent opacity-60"></div>
-
-        {/* Hero Content Container */}
-        <div className="relative z-10 w-full max-w-6xl mx-auto">
-
-          {/* Main Content - Centered with Staggered Animations */}
-          <div className="text-center space-y-6 lg:space-y-8">
-
-            {/* Badge - Animated */}
-            <div className="inline-flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm text-white px-5 py-2.5 rounded-full text-xs font-medium tracking-wide shadow-xl shadow-gray-900/20 animate-fade-in-up opacity-0" style={{ animationDelay: '0.1s' }}>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5500] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5500]"></span>
-              </span>
-              New Collection 2025
-            </div>
-
-            {/* Main Headline - Enhanced with Gradient Text */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s' }}>
-              <span className="block text-gray-900 dark:text-white drop-shadow-sm">Step Into</span>
-              <span className="block animate-gradient-text">Greatness</span>
-            </h1>
-
-            {/* Subtitle - With better readability */}
-            <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg md:text-xl max-w-lg mx-auto leading-relaxed animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s' }}>
-              Premium authentic sneakers, curated for those who demand the best in style and quality.
-            </p>
-
-            {/* CTA Buttons - Enhanced with animations */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s' }}>
-              <button
-                onClick={() => scrollToSection(topPicksRef)}
-                className="group relative w-full sm:w-auto px-10 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-xl shadow-gray-900/30 hover:shadow-2xl hover:shadow-gray-900/40"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  Shop Now
-                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-[#FF5500] to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </button>
-
-              <button
-                onClick={() => scrollToSection(blackCollectionRef)}
-                className="group w-full sm:w-auto px-10 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-900 dark:text-white font-bold rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-[#FF5500] dark:hover:border-[#FF5500] transition-all duration-300 hover:shadow-lg"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  Explore
-                  <svg className="w-5 h-5 transition-transform group-hover:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Brand Marquee + Trust Badges */}
-          <div className="lg:hidden mt-10 animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s' }}>
-            {/* Brand Marquee */}
-            <div className="relative w-full bg-gray-900/95 backdrop-blur-sm py-3 mb-8 overflow-hidden rounded-2xl mx-4">
-              <div className="flex w-max animate-marquee">
-                {[1, 2].map((_, idx) => (
-                  <div key={idx} className="flex gap-8 items-center text-white font-bold tracking-widest text-sm px-4">
-                    <span>NIKE</span>
-                    <span className="text-[#FF5500]">✦</span>
-                    <span>ADIDAS</span>
-                    <span className="text-[#FF5500]">✦</span>
-                    <span>NEW BALANCE</span>
-                    <span className="text-[#FF5500]">✦</span>
-                    <span>PUMA</span>
-                    <span className="text-[#FF5500]">✦</span>
-                    <span>CONVERSE</span>
-                    <span className="text-[#FF5500]">✦</span>
-                    <span>ASICS</span>
-                    <span className="text-[#FF5500]">✦</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Trust Badges */}
-            <div className="flex flex-wrap justify-center gap-4 px-4">
-              {[
-                { icon: "M5 13l4 4L19 7", text: "100% Authentic" },
-                { icon: "M5 13l4 4L19 7", text: "Free Shipping" },
-                { icon: "M5 13l4 4L19 7", text: "30 Days Return" }
-              ].map((badge, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <svg className="w-4 h-4 text-[#FF5500]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={badge.icon} />
-                  </svg>
-                  {badge.text}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop Featured Product Showcase */}
-          <div className="hidden lg:block relative mt-16 animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s' }}>
-            {/* Product Image with Float Animation */}
-            <div className="relative flex justify-center">
-              <div className="relative group cursor-pointer">
-                {/* Ambient Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-300/40 to-orange-200/30 rounded-full blur-[80px] scale-75 group-hover:scale-100 transition-all duration-700"></div>
-
-                {/* Shadow on Ground */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[60px] bg-black/10 rounded-[100%] blur-xl group-hover:w-[450px] transition-all duration-500"></div>
-
-                {/* Floating Sneaker Image */}
-                <img
-                  src={heroImage}
-                  alt="Nike P-6000"
-                  className="relative w-[550px] drop-shadow-2xl animate-float transition-all duration-500 group-hover:drop-shadow-[0_40px_80px_rgba(255,85,0,0.3)]"
-                />
-              </div>
-
-              {/* Floating Product Card */}
-              <div
-                className="absolute top-0 right-[5%] xl:right-[15%] cursor-pointer group/card"
-                onClick={() => navigate("/product/sneakers/3")}
-              >
-                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-5 rounded-3xl shadow-2xl border border-white/50 dark:border-gray-700/50 w-64 transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_30px_60px_-15px_rgba(255,85,0,0.25)]">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium mb-1">Featured</p>
-                      <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">Nike P-6000 Metallic Silver</h3>
-                    </div>
-                    <span className="text-xs bg-gradient-to-r from-[#FF5500] to-orange-600 text-white px-2.5 py-1 rounded-lg font-bold shadow-lg shadow-orange-500/30">-19%</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 mb-3">
-                    <div className="flex text-amber-400 text-xs">★★★★★</div>
-                    <span className="text-xs text-gray-400 font-medium">(4.9)</span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <div>
-                      <p className="text-xs text-gray-400 line-through">Rp 1.800.000</p>
-                      <p className="text-lg font-black text-gray-900 dark:text-white">Rp 1.460.000</p>
-                    </div>
-                    <button className="w-11 h-11 bg-gray-900 text-white rounded-xl flex items-center justify-center hover:bg-[#FF5500] transition-all duration-300 shadow-lg hover:shadow-orange-500/30 hover:scale-110">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Desktop Trust Badges */}
-            <div className="flex justify-center gap-8 mt-16">
-              {[
-                { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", text: "100% Authentic", desc: "Guaranteed Original" },
-                { icon: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4", text: "Free Shipping", desc: "Orders Above 1Jt" },
-                { icon: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15", text: "Easy Returns", desc: "30 Days Policy" }
-              ].map((badge, idx) => (
-                <div key={idx} className="flex items-center gap-3 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-5 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-[#FF5500]/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#FF5500] to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={badge.icon} />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{badge.text}</p>
-                    <p className="text-xs text-gray-500">{badge.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Showcase Slider */}
+        <div className="relative z-10 w-full">
+          <HeroSneakerSlider
+            products={products}
+            onExplore={(sneaker, matchedProduct) => {
+              if (matchedProduct) {
+                navigate(`/product/products/${matchedProduct.id}`);
+              } else {
+                navigate("/sneakers", { state: { brand: sneaker.filterBrand } });
+              }
+            }}
+          />
         </div>
       </section>
 
@@ -336,7 +194,7 @@ export default function Home() {
             Trusted by the world's leading sneaker enthusiasts
           </p>
 
-          <div className="flex justify-around items-center gap-16 sm:gap-20 overflow-x-auto no-scrollbar opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
+          <div className="flex justify-around items-center gap-16 sm:gap-20 overflow-x-auto no-scrollbar opacity-60 dark:opacity-80 grayscale hover:grayscale-0 dark:invert transition-all duration-700">
             <img
               src={nikeLogo}
               alt="Nike Logo"
@@ -410,7 +268,7 @@ export default function Home() {
           <div className="hidden md:flex gap-4">
             <button
               onClick={() => scroll("left")}
-              className="group w-14 h-14 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center hover:bg-black hover:border-black transition-all duration-300 shadow-sm hover:shadow-xl"
+              className="group w-14 h-14 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center hover:bg-black dark:hover:bg-white hover:border-black dark:hover:border-white transition-all duration-300 shadow-sm hover:shadow-xl"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -418,7 +276,7 @@ export default function Home() {
                 viewBox="0 0 24 24"
                 strokeWidth={2}
                 stroke="currentColor"
-                className="w-6 h-6 text-gray-700 group-hover:text-white transition-colors"
+                className="w-6 h-6 text-gray-700 dark:text-gray-200 group-hover:text-white dark:group-hover:text-gray-900 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -429,7 +287,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => scroll("right")}
-              className="group w-14 h-14 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-black hover:border-black transition-all duration-300 shadow-sm hover:shadow-xl"
+              className="group w-14 h-14 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center hover:bg-black dark:hover:bg-white hover:border-black dark:hover:border-white transition-all duration-300 shadow-sm hover:shadow-xl"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -437,7 +295,7 @@ export default function Home() {
                 viewBox="0 0 24 24"
                 strokeWidth={2}
                 stroke="currentColor"
-                className="w-6 h-6 text-gray-700 group-hover:text-white transition-colors"
+                className="w-6 h-6 text-gray-700 dark:text-gray-200 group-hover:text-white dark:group-hover:text-gray-900 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -459,7 +317,7 @@ export default function Home() {
               <div
                 key={i}
                 // SKELETON RESPONSIVE
-                className="min-w-[260px] md:min-w-[340px] h-[350px] md:h-[400px] bg-gray-100 rounded-[2rem] animate-pulse flex-shrink-0"
+                className="min-w-[260px] md:min-w-[340px] h-[350px] md:h-[400px] bg-gray-100 dark:bg-gray-800 rounded-[2rem] animate-pulse flex-shrink-0"
               ></div>
             ))
             : topPicks.map((item, index) => (
@@ -469,14 +327,14 @@ export default function Home() {
                 className="min-w-[260px] md:min-w-[340px] snap-center flex-shrink-0 group"
               >
                 <div
-                  onClick={() => navigate(`/product/sneakers/${item.id}`)}
+                  onClick={() => navigate(`/product/products/${item.id}`)}
                   // Enhanced hover with lift and glow effect
-                  className="bg-white p-4 md:p-5 rounded-[2rem] relative transition-all duration-700 hover:-translate-y-4 hover:shadow-[0_25px_50px_-12px_rgba(249,115,22,0.4)] border border-gray-100 hover:border-orange-200 h-full flex flex-col justify-between cursor-pointer overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-orange-50/0 before:to-orange-50/0 hover:before:from-orange-50/50 hover:before:to-purple-50/30 before:transition-all before:duration-700 before:opacity-0 hover:before:opacity-100"
+                  className="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-[2rem] relative transition-all duration-700 hover:-translate-y-4 hover:shadow-[0_25px_50px_-12px_rgba(249,115,22,0.4)] border border-gray-100 dark:border-gray-800 hover:border-orange-200 dark:hover:border-orange-500/40 h-full flex flex-col justify-between cursor-pointer overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-orange-50/0 before:to-orange-50/0 hover:before:from-orange-50/50 hover:before:to-purple-50/30 dark:hover:before:from-orange-500/5 dark:hover:before:to-purple-500/5 before:transition-all before:duration-700 before:opacity-0 hover:before:opacity-100"
                 >
                   {/* Image Area */}
                   <div>
                     {/* TINGGI GAMBAR DIKURANGI DI MOBILE (h-[180px]) */}
-                    <div className="relative h-[180px] md:h-[240px] rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center mb-4 md:mb-6 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100/50 group-hover:from-orange-50/50 group-hover:to-purple-50/30 transition-all duration-700">
+                    <div className="relative h-[180px] md:h-[240px] rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center mb-4 md:mb-6 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-100 dark:to-gray-200 group-hover:from-orange-50/50 group-hover:to-purple-50/30 transition-all duration-700">
                       {/* Ranking Badge with pulse */}
                       <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
                         <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-gray-900 to-black text-white rounded-full flex items-center justify-center font-black text-xs md:text-sm shadow-lg shadow-black/30 group-hover:shadow-black/50 transition-all duration-500 group-hover:scale-110 relative">
@@ -487,10 +345,13 @@ export default function Home() {
 
                       {/* Favorite Button with enhanced interaction */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-8 h-8 md:w-10 md:h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-white transition-all shadow-lg hover:shadow-red-200/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 transform md:translate-y-2 md:group-hover:translate-y-0 duration-500 hover:scale-110 active:scale-95"
+                        onClick={(e) => handleWishlistToggle(e, item)}
+                        aria-label={`Toggle wishlist for ${item.name}`}
+                        className={`absolute top-3 right-3 md:top-4 md:right-4 z-20 w-8 h-8 md:w-10 md:h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all shadow-lg hover:shadow-red-200/50 transform duration-500 hover:scale-110 active:scale-95 ${
+                          isInWishlist(item.id, "products")
+                            ? "text-red-500 opacity-100"
+                            : "text-gray-400 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:translate-y-2 md:group-hover:translate-y-0"
+                        }`}
                       >
                         <svg
                           className="w-4 h-4 md:w-5 md:h-5 transition-transform hover:scale-110"
@@ -521,24 +382,24 @@ export default function Home() {
                       <p className="text-orange-500 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 group-hover:text-orange-600 transition-colors">
                         {item.category}
                       </p>
-                      <h3 className="font-black text-gray-900 text-lg md:text-xl leading-tight mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors duration-300">
+                      <h3 className="font-black text-gray-900 dark:text-white text-lg md:text-xl leading-tight mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors duration-300">
                         {item.name}
                       </h3>
                     </div>
                   </div>
 
                   {/* Footer Action */}
-                  <div className="px-1 md:px-2 pt-3 md:pt-4 flex items-center justify-between border-t border-dashed border-gray-100 group-hover:border-orange-200/50 mt-2 transition-colors relative z-10">
+                  <div className="px-1 md:px-2 pt-3 md:pt-4 flex items-center justify-between border-t border-dashed border-gray-100 dark:border-gray-800 group-hover:border-orange-200/50 mt-2 transition-colors relative z-10">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-gray-400 font-medium uppercase group-hover:text-orange-500 transition-colors">
                         Current Price
                       </span>
-                      <p className="text-lg md:text-xl font-black text-gray-900 group-hover:text-orange-600 transition-colors">
+                      <p className="text-lg md:text-xl font-black text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">
                         {(item.price / 1000).toLocaleString()}K
                       </p>
                     </div>
 
-                    <button className="relative overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-gray-900 text-white rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-orange-600 transition-all duration-500 shadow-lg shadow-gray-900/20 group-hover:shadow-orange-500/50 group-hover:scale-110 active:scale-95">
+                    <button className="relative overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-orange-600 group-hover:text-white transition-all duration-500 shadow-lg shadow-gray-900/20 group-hover:shadow-orange-500/50 group-hover:scale-110 active:scale-95">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -582,7 +443,7 @@ export default function Home() {
                 Just Dropped
               </span>
             </div>
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 leading-none">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white leading-none">
               FRESH{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500">
                 KICKS.
@@ -606,12 +467,12 @@ export default function Home() {
                 key={item.id}
                 onClick={() => navigate(`/product/products/${item.id}`)}
                 // Enhanced hover with smooth lift and purple theme
-                className="group relative bg-white rounded-2xl md:rounded-[2rem] p-3 md:p-4 transition-all duration-700 hover:shadow-[0_25px_60px_-15px_rgba(124,58,237,0.25)] hover:-translate-y-3 border border-gray-100 hover:border-purple-200 cursor-pointer h-full flex flex-col justify-between overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-50/0 before:to-blue-50/0 hover:before:from-purple-50/40 hover:before:to-blue-50/30 before:transition-all before:duration-700 before:opacity-0 hover:before:opacity-100"
+                className="group relative bg-white dark:bg-gray-900 rounded-2xl md:rounded-[2rem] p-3 md:p-4 transition-all duration-700 hover:shadow-[0_25px_60px_-15px_rgba(124,58,237,0.25)] hover:-translate-y-3 border border-gray-100 dark:border-gray-800 hover:border-purple-200 dark:hover:border-purple-500/40 cursor-pointer h-full flex flex-col justify-between overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-50/0 before:to-blue-50/0 hover:before:from-purple-50/40 hover:before:to-blue-50/30 dark:hover:before:from-purple-500/5 dark:hover:before:to-blue-500/5 before:transition-all before:duration-700 before:opacity-0 hover:before:opacity-100"
               >
                 {/* Image Container */}
                 <div>
                   {/* Tinggi gambar lebih kecil di mobile (h-[140px]) */}
-                  <div className="relative h-[140px] md:h-[220px] bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] rounded-xl md:rounded-[1.5rem] flex items-center justify-center mb-3 md:mb-5 overflow-hidden group-hover:from-purple-50/70 group-hover:to-blue-50/40 transition-all duration-700">
+                  <div className="relative h-[140px] md:h-[220px] bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] dark:from-gray-100 dark:to-gray-200 rounded-xl md:rounded-[1.5rem] flex items-center justify-center mb-3 md:mb-5 overflow-hidden group-hover:from-purple-50/70 group-hover:to-blue-50/40 transition-all duration-700">
                     {/* Floating Badge with enhanced animation */}
                     <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20">
                       <div className="bg-white/90 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-lg border border-white/50 flex items-center gap-1.5 group-hover:shadow-purple-200/50 group-hover:scale-105 transition-all duration-500">
@@ -638,19 +499,19 @@ export default function Home() {
                     <p className="text-[10px] md:text-xs font-bold text-gray-400 group-hover:text-purple-500 mb-0.5 md:mb-1 uppercase tracking-wide truncate transition-colors duration-300">
                       {item.category}
                     </p>
-                    <h3 className="font-bold text-gray-900 group-hover:text-purple-700 text-sm md:text-lg leading-tight mb-2 md:mb-3 transition-colors duration-300 line-clamp-2 md:line-clamp-1 h-[2.5em] md:h-auto">
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 text-sm md:text-lg leading-tight mb-2 md:mb-3 transition-colors duration-300 line-clamp-2 md:line-clamp-1 h-[2.5em] md:h-auto">
                       {item.name}
                     </h3>
                   </div>
                 </div>
 
                 {/* Footer Price & Button */}
-                <div className="px-1 md:px-2 flex items-center justify-between border-t border-gray-50 group-hover:border-purple-100/50 pt-2 md:pt-4 mt-auto transition-colors relative z-10">
+                <div className="px-1 md:px-2 flex items-center justify-between border-t border-gray-50 dark:border-gray-800 group-hover:border-purple-100/50 pt-2 md:pt-4 mt-auto transition-colors relative z-10">
                   <div className="flex flex-col">
                     <span className="hidden md:block text-[10px] text-gray-400 group-hover:text-purple-500 font-medium transition-colors">
                       Price
                     </span>
-                    <span className="text-gray-900 group-hover:text-purple-700 font-black text-sm md:text-lg transition-colors">
+                    <span className="text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 font-black text-sm md:text-lg transition-colors">
                       {(item.price / 1000).toLocaleString()}K
                     </span>
                   </div>
@@ -658,8 +519,10 @@ export default function Home() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      navigate(`/product/products/${item.id}`);
                     }}
-                    className="h-8 w-8 md:h-10 md:w-10 bg-gray-900 rounded-full flex items-center justify-center text-white shadow-lg shadow-gray-900/20 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-purple-600 group-hover:to-purple-700 group-hover:shadow-purple-600/40 transition-all duration-500 active:scale-95 relative overflow-hidden"
+                    aria-label={`View ${item.name}`}
+                    className="h-8 w-8 md:h-10 md:w-10 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center text-white dark:text-gray-900 shadow-lg shadow-gray-900/20 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-purple-600 group-hover:to-purple-700 group-hover:text-white group-hover:shadow-purple-600/40 transition-all duration-500 active:scale-95 relative overflow-hidden"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -694,7 +557,13 @@ export default function Home() {
           className="max-w-7xl mx-auto px-4 md:px-6 mb-32 scroll-mt-24"
         >
           {/* Back In Black Banner */}
-          <BackInBlackBanner onScrollToProducts={() => window.scrollTo({ top: window.scrollY + 400, behavior: 'smooth' })} />
+          <BackInBlackBanner
+            onScrollToProducts={() =>
+              lenis
+                ? lenis.scrollTo(window.scrollY + 400)
+                : window.scrollTo({ top: window.scrollY + 400, behavior: "smooth" })
+            }
+          />
 
           {/* GRID LAYOUT:
               - grid-cols-2 (Mobile)

@@ -1,7 +1,25 @@
+import 'dotenv/config';
 import jwt from 'jsonwebtoken';
 
-// JWT Secret - should be in .env
-const JWT_SECRET = process.env.JWT_SECRET || 'truekicks-secret-key-change-in-production';
+const INSECURE_PLACEHOLDER_SECRET = 'truekicks-secret-key-change-in-production';
+
+const getJwtSecret = () => {
+    const secret = process.env.JWT_SECRET?.trim();
+    if (!secret || secret === INSECURE_PLACEHOLDER_SECRET) {
+        throw new Error(
+            'FATAL: JWT_SECRET environment variable must be set to a strong, non-default value.'
+        );
+    }
+    if (secret.length < 32) {
+        console.warn(
+            'WARNING: JWT_SECRET is shorter than 32 characters. Rotate to a stronger secret (>= 32 chars).'
+        );
+    }
+    return secret;
+};
+
+// Fail fast on startup if JWT_SECRET is missing or insecure
+const JWT_SECRET = getJwtSecret();
 
 // Generate JWT Token
 export const generateToken = (user) => {

@@ -25,7 +25,7 @@ export default function Splash() {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-gray-950 transition-opacity duration-500 ${
         phase >= 3 ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -46,7 +46,7 @@ export default function Splash() {
             : "opacity-0 translate-y-4 scale-95"
         }`}
       >
-        <h1 className="text-[clamp(2.5rem,10vw,5rem)] font-black italic tracking-tighter text-gray-900 select-none leading-none">
+        <h1 className="text-[clamp(2.5rem,10vw,5rem)] font-black italic tracking-tighter text-gray-900 dark:text-white select-none leading-none">
           TRUE<span className="text-[#FF5500]">KICKS</span>
         </h1>
       </div>

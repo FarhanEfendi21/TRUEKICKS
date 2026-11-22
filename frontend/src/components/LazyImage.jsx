@@ -12,6 +12,7 @@ export default function LazyImage({
     src,
     alt = "",
     className = "",
+    imgClassName = "",
     placeholderColor = "bg-gray-200",
     ...props
 }) {
@@ -19,6 +20,18 @@ export default function LazyImage({
     const [isInView, setIsInView] = useState(false);
     const [hasError, setHasError] = useState(false);
     const imgRef = useRef(null);
+
+    const fitClass = /\bobject-(contain|cover|fill|none|scale-down)\b/.test(imgClassName)
+        ? ""
+        : /\bobject-contain\b/.test(className)
+        ? "object-contain"
+        : /\bobject-scale-down\b/.test(className)
+        ? "object-scale-down"
+        : /\bobject-fill\b/.test(className)
+        ? "object-fill"
+        : /\bobject-none\b/.test(className)
+        ? "object-none"
+        : "object-cover";
 
     // Intersection Observer untuk lazy loading
     useEffect(() => {
@@ -75,7 +88,7 @@ export default function LazyImage({
                     alt={alt}
                     onLoad={handleLoad}
                     onError={handleError}
-                    className={`w-full h-full object-cover transition-all duration-500 ${isLoaded ? "opacity-100 blur-0 scale-100" : "opacity-0 blur-sm scale-105"
+                    className={`w-full h-full ${fitClass} ${imgClassName} transition-all duration-500 ${isLoaded ? "opacity-100 blur-0 scale-100" : "opacity-0 blur-sm scale-105"
                         }`}
                 />
             )}

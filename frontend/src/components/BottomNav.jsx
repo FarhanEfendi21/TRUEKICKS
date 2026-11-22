@@ -48,7 +48,7 @@ export default function BottomNav() {
         className={`fixed bottom-28 left-1/2 -translate-x-1/2 w-[85%] max-w-sm z-50 transition-all duration-300 ease-out lg:hidden
         ${showMenu ? "translate-y-0 opacity-100 scale-100" : "translate-y-4 opacity-0 scale-95 pointer-events-none"}`}
       >
-        <div className="bg-white rounded-2xl p-4 shadow-2xl shadow-black/20 border border-gray-100">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-2xl shadow-black/20 dark:shadow-black/60 border border-gray-100 dark:border-gray-800">
           {/* Header */}
           <div className="flex items-center justify-between mb-3 px-1">
             <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">
@@ -56,7 +56,7 @@ export default function BottomNav() {
             </span>
             <button
               onClick={() => setShowMenu(false)}
-              className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
+              className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -100,14 +100,14 @@ export default function BottomNav() {
       >
         <button
           onClick={() => navigate("/cart")}
-          className="relative w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg shadow-black/30 active:scale-95 transition-transform"
+          className="relative w-14 h-14 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center shadow-lg shadow-black/30 active:scale-95 transition-transform"
         >
           {/* Cart Icon */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="w-6 h-6 text-white"
+            className="w-6 h-6 text-white dark:text-gray-900"
           >
             <path
               fillRule="evenodd"
@@ -129,7 +129,7 @@ export default function BottomNav() {
           4. MAIN BOTTOM NAV BAR
       ======================================== */}
       <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4 pt-2">
-        <div className="bg-white rounded-2xl h-16 flex justify-around items-center shadow-lg shadow-black/10 border border-gray-100 max-w-md mx-auto">
+        <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl h-16 flex justify-around items-center shadow-lg shadow-black/10 dark:shadow-black/50 border border-gray-100 dark:border-gray-800 max-w-md mx-auto">
 
           {/* Home Button */}
           <NavIcon
@@ -201,10 +201,10 @@ function MenuButton({ icon, title, onClick, highlight }) {
       className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-95
         ${highlight
           ? "bg-orange-500 text-white"
-          : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+          : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
         }`}
     >
-      <span className={highlight ? "text-white" : "text-gray-500"}>
+      <span className={highlight ? "text-white" : "text-gray-500 dark:text-gray-400"}>
         {icon}
       </span>
       <span className="font-semibold text-sm">{title}</span>

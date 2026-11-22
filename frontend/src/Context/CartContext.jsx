@@ -56,45 +56,73 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // Fungsi: Tambah ke Keranjang
+  const normalizeProductType = (productType) => productType || "sneakers";
+
+const isSameCartItem = (item, id, size, productType) =>
+  String(item.id) === String(id) &&
+  String(item.size) === String(size) &&
+  normalizeProductType(item.productType) === normalizeProductType(productType);
+
+// Fungsi: Tambah ke Keranjang
   const addToCart = (product) => {
     const userId = getCurrentUserId();
 
     // Proteksi Ganda: Jika Guest entah bagaimana bisa akses fungsi ini, tolak.
     if (!userId) return;
 
+    const normalizedProduct = {
+      ...product,
+      productType: normalizeProductType(product.productType),
+    };
+
     setCartItems((prevItems) => {
-      const existingItem = prevItems.find(
-        (item) => item.id === product.id && item.size === product.size
+      const existingItem = prevItems.find((item) =>
+        isSameCartItem(
+          item,
+          normalizedProduct.id,
+          normalizedProduct.size,
+          normalizedProduct.productType
+        )
       );
 
       if (existingItem) {
         return prevItems.map((item) =>
-          item.id === product.id && item.size === product.size
-            ? { ...item, quantity: item.quantity + product.quantity }
+          isSameCartItem(
+            item,
+            normalizedProduct.id,
+            normalizedProduct.size,
+            normalizedProduct.productType
+          )
+            ? { ...item, quantity: item.quantity + normalizedProduct.quantity }
             : item
         );
       } else {
-        return [...prevItems, product];
+        return [...prevItems, normalizedProduct];
       }
     });
   };
 
   // Fungsi: Hapus dari Keranjang
-  const removeFromCart = (id, size) => {
+  const removeFromCart = (id, size, productType) => {
     setCartItems((prevItems) =>
-      prevItems.filter((item) => !(item.id === id && item.size === size))
+      prevItems.filter((item) =>
+        productType !== undefined
+          ? !isSameCartItem(item, id, size, productType)
+          : !(String(item.id) === String(id) && String(item.size) === String(size))
+      )
     );
   };
 
   // Fungsi: Update Quantity
-  const updateQuantity = (id, size, newQuantity) => {
+  const updateQuantity = (id, size, newQuantity, productType) => {
     setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === id && item.size === size
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
+      prevItems.map((item) => {
+        const matches =
+          productType !== undefined
+            ? isSameCartItem(item, id, size, productType)
+            : String(item.id) === String(id) && String(item.size) === String(size);
+        return matches ? { ...item, quantity: newQuantity } : item;
+      })
     );
   };
 

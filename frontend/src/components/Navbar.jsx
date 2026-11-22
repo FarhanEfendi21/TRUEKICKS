@@ -4,6 +4,7 @@ import { HiOutlineHeart, HiHeart } from "react-icons/hi2";
 
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
+import { useTheme } from "../Context/ThemeContext";
 import { logout } from "../lib/api";
 import SearchBar from "./SearchBar";
 
@@ -63,6 +64,7 @@ export default function Navbar() {
 
   const { totalItems, refreshCart } = useCart();
   const { wishlistItems, removeFromWishlist, refreshWishlist } = useWishlist();
+  const { isDark, toggleTheme } = useTheme();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -155,8 +157,8 @@ export default function Navbar() {
     <>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 font-poppins ${isScrolled || showCatalog
-          ? "bg-white/80 dark:bg-gray-900/90 backdrop-blur-xl shadow-[0_2px_20px_-5px_rgba(0,0,0,0.1)] py-2"
-          : "bg-gradient-to-b from-white/50 to-transparent py-4"
+          ? "bg-white/85 dark:bg-gray-950/90 backdrop-blur-xl shadow-[0_2px_20px_-5px_rgba(0,0,0,0.1)] dark:shadow-black/40 border-b border-gray-100/60 dark:border-gray-800/80 py-2"
+          : "bg-gradient-to-b from-white/70 to-transparent dark:from-gray-950/80 dark:to-transparent py-4"
           }`}
         onMouseLeave={() => { }}
       >
@@ -238,12 +240,50 @@ export default function Navbar() {
           {/* ==================================================
              ACTION BUTTONS (RIGHT)
           ================================================== */}
-          <div className="flex items-center gap-1 md:gap-2 lg:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-2 lg:gap-3 flex-shrink-0">
 
             {/* === SEARCH BAR === */}
             <div className="hidden lg:block">
               <SearchBar />
             </div>
+
+            {/* === DARK MODE TOGGLE (Visible Desktop & Mobile) === */}
+            <button
+              onClick={toggleTheme}
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              title={isDark ? "Light Mode" : "Dark Mode"}
+              className="group relative p-2.5 rounded-full bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-md text-gray-600 dark:text-amber-400 transition-all duration-300 active:scale-95"
+            >
+              {isDark ? (
+                <svg
+                  className="w-5 h-5 transition-transform duration-300 group-hover:rotate-45"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5 transition-transform duration-300 group-hover:-rotate-12"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  />
+                </svg>
+              )}
+            </button>
 
             {/* === WISHLIST BUTTON === */}
             <div className="relative hidden lg:block">
@@ -252,8 +292,8 @@ export default function Navbar() {
                 className={`
                     group relative p-2 rounded-full transition-all duration-300
                     ${showWishlist
-                    ? "bg-orange-50 text-[#FF5500]"
-                    : "hover:bg-gray-100 text-gray-600 hover:text-[#FF5500]"
+                    ? "bg-orange-50 dark:bg-orange-500/15 text-[#FF5500]"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-[#FF5500]"
                   }
                  `}
               >
@@ -300,13 +340,16 @@ export default function Navbar() {
                   </div>
 
                   {/* List Item */}
-                  <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800">
+                  <div
+                    data-lenis-prevent
+                    className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800"
+                  >
                     {wishlistItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                          <HiOutlineHeart className="w-6 h-6 text-gray-300" />
+                        <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                          <HiOutlineHeart className="w-6 h-6 text-gray-300 dark:text-gray-500" />
                         </div>
-                        <p className="text-xs font-bold text-gray-900">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">
                           Your wishlist is empty
                         </p>
                         <p className="text-[10px] text-gray-400 mt-1">
@@ -316,7 +359,7 @@ export default function Navbar() {
                     ) : (
                       wishlistItems.map((item) => (
                         <div
-                          key={item.id}
+                          key={`${item.productType || "sneakers"}-${item.id}`}
                           onClick={() => {
                             navigate(`/product/${item.productType || 'sneakers'}/${item.id}`);
                             setShowWishlist(false);
@@ -324,10 +367,10 @@ export default function Navbar() {
                           className="flex gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl cursor-pointer group transition-colors"
                         >
                           {/* Gambar Kecil */}
-                          <div className="w-14 h-14 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-14 h-14 bg-white border border-gray-100 dark:border-gray-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img
                               src={item.image}
-                              className="w-[85%] object-contain mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform duration-500"
+                              className="w-[85%] object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
                               alt={item.name}
                             />
                           </div>
@@ -346,9 +389,9 @@ export default function Navbar() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              removeFromWishlist(item.id);
+                              removeFromWishlist(item.id, item.productType);
                             }}
-                            className="self-center p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                            className="self-center p-2 text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-all"
                             title="Remove from wishlist"
                           >
                             <svg
@@ -372,13 +415,13 @@ export default function Navbar() {
 
                   {/* Footer Dropdown (Optional: View All) */}
                   {wishlistItems.length > 0 && (
-                    <div className="p-3 border-t border-gray-50 bg-gray-50/50">
+                    <div className="p-3 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/80">
                       <button
                         onClick={() => {
                           navigate("/wishlist");
                           setShowWishlist(false);
                         }}
-                        className="w-full py-2 text-xs font-bold text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-black hover:text-white hover:border-black transition-all shadow-sm"
+                        className="w-full py-2 text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-black hover:text-white hover:border-black dark:hover:bg-[#FF5500] dark:hover:border-[#FF5500] transition-all shadow-sm"
                       >
                         View Full Wishlist
                       </button>
@@ -391,7 +434,7 @@ export default function Navbar() {
             {/* CART */}
             <button
               onClick={() => navigate("/cart")}
-              className="hidden md:block group relative p-2 rounded-full hover:bg-orange-50 transition-all duration-300"
+              className="hidden md:block group relative p-2 rounded-full hover:bg-orange-50 dark:hover:bg-gray-800 transition-all duration-300"
             >
               {/* Icon */}
               <div className="relative transition-all duration-300 group-hover:scale-[1.15] group-hover:-translate-y-0.5 group-active:scale-95">

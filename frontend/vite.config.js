@@ -1,28 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['Logo.png'],
       manifest: {
-        name: 'TrueKicks PWA',
-        short_name: 'TrueKicks',
+        name: 'TrueKicks Store',
+        short_name: 'TRUEKICKS',
         description: 'Premium Sneaker Marketplace',
+        start_url: '/',
         theme_color: '#FF5500',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
           {
-            src: 'Logo.png',
+            src: '/Logo.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'Logo.png',
+            src: '/Logo.png',
             sizes: '512x512',
             type: 'image/png'
           }

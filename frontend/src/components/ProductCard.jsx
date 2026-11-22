@@ -44,29 +44,24 @@ export default function ProductCard({
   index = 0, 
   reviews = [], 
   productType = "sneakers", // "sneakers" | "apparel" | "sale_products"
-  onWishlistToggle, 
-  isInWishlist = false 
 }) {
   const navigate = useNavigate();
   const [ref, isVisible] = useScrollAnimation();
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(isInWishlist);
 
   // Hitung delay: item ke-1 = 0ms, item ke-2 = 100ms, dst
   const delay = (index % 6) * 100;
 
-  // Calculate rating from reviews
-  const productReviews = reviews.filter(r => String(r.product_id) === String(item.id));
+  // Calculate rating from reviews matching both product_id and product_type
+  const productReviews = reviews.filter(
+    (r) =>
+      String(r.product_id) === String(item.id) &&
+      r.product_type === productType
+  );
   const avgRating = productReviews.length > 0
     ? (productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length).toFixed(1)
     : 0;
   const reviewCount = productReviews.length;
-
-  const handleFavoriteClick = (e) => {
-    e.stopPropagation();
-    setIsFavorite(!isFavorite);
-    if (onWishlistToggle) onWishlistToggle(item);
-  };
 
   const handleProductClick = () => {
     // Navigate dynamically based on the product type
@@ -81,8 +76,8 @@ export default function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
       style={{ transitionDelay: `${delay}ms` }}
       className={`
-        bg-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 
-        hover:shadow-xl hover:border-gray-200 transition-all duration-500 ease-out 
+        bg-white dark:bg-gray-900 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800
+        hover:shadow-xl hover:border-gray-200 dark:hover:border-gray-700 transition-all duration-500 ease-out 
         hover:-translate-y-2 cursor-pointer h-full flex flex-col justify-between group
         transform will-change-transform
         ${isVisible
@@ -92,8 +87,8 @@ export default function ProductCard({
       `}
     >
       <div>
-        {/* Image Container */}
-        <div className="relative h-[130px] md:h-[220px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 overflow-hidden group-hover:from-orange-50 group-hover:to-orange-100/50 transition-colors duration-500">
+        {/* Image Container - Keep light surface so mix-blend-multiply product shots stay sharp in dark mode */}
+        <div className="relative h-[145px] md:h-[220px] p-3 md:p-5 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-100 dark:to-gray-200 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 overflow-hidden group-hover:from-orange-50 group-hover:to-orange-100/50 transition-colors duration-500">
           {/* Category Badge */}
           <div className="absolute top-2 left-2 md:top-3 md:left-3 flex flex-col gap-1.5 z-20">
             <span className="bg-white/90 backdrop-blur-sm text-gray-700 text-[8px] md:text-[9px] px-1.5 py-0.5 md:px-2 md:py-1 rounded-md font-semibold border border-gray-100 shadow-sm uppercase">
@@ -104,9 +99,10 @@ export default function ProductCard({
           {/* Product Image */}
           <LazyImage
             src={item.image_url}
-            className={`w-[80%] h-[80%] md:w-full md:h-full object-contain mix-blend-multiply transition-all duration-500 ${
-              isHovered ? "scale-105 md:scale-110 -rotate-3" : "scale-100 rotate-0"
+            className={`w-full h-full object-contain mix-blend-multiply transition-all duration-500 ${
+              isHovered ? "scale-105 -rotate-2" : "scale-100 rotate-0"
             }`}
+            imgClassName="object-contain object-center"
             alt={item.name}
             placeholderColor="bg-transparent"
           />
@@ -120,7 +116,7 @@ export default function ProductCard({
         </div>
 
         {/* Product Info */}
-        <h3 className="font-bold text-gray-900 text-xs md:text-sm line-clamp-2 group-hover:text-[#FF5500] transition-colors mb-0.5 md:mb-1 leading-tight">
+        <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm line-clamp-2 group-hover:text-[#FF5500] transition-colors mb-0.5 md:mb-1 leading-tight">
           {item.name}
         </h3>
 
@@ -134,14 +130,14 @@ export default function ProductCard({
                 </svg>
               ))}
             </div>
-            <span className="text-[10px] md:text-xs text-gray-500 font-medium">{avgRating}</span>
-            <span className="text-[9px] md:text-[10px] text-gray-400">({reviewCount})</span>
+            <span className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium">{avgRating}</span>
+            <span className="text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500">({reviewCount})</span>
           </div>
         )}
 
         {/* No Reviews State */}
         {reviewCount === 0 && (
-          <p className="text-[10px] md:text-xs text-gray-400 mt-1 md:mt-1.5 font-medium">No reviews yet</p>
+          <p className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mt-1 md:mt-1.5 font-medium">No reviews yet</p>
         )}
       </div>
 
@@ -153,9 +149,10 @@ export default function ProductCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            /* Add fast add-to-cart logic here later */
+            handleProductClick();
           }}
-          className="w-7 h-7 md:w-9 md:h-9 bg-gray-900 text-white rounded-lg md:rounded-xl flex items-center justify-center hover:bg-black hover:scale-110 active:scale-95 transition-all duration-200 shadow-md group-hover:shadow-lg group-hover:shadow-gray-400/30 flex-shrink-0"
+          aria-label={`View ${item.name}`}
+          className="w-7 h-7 md:w-9 md:h-9 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg md:rounded-xl flex items-center justify-center hover:bg-black dark:hover:bg-[#FF5500] dark:hover:text-white hover:scale-110 active:scale-95 transition-all duration-200 shadow-md group-hover:shadow-lg group-hover:shadow-gray-400/30 dark:shadow-none flex-shrink-0"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 md:w-4 md:h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

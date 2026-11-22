@@ -53,21 +53,46 @@ export const WishlistProvider = ({ children }) => {
     }
   };
 
+  const normalizeProductType = (productType) => productType || "sneakers";
+
+  const isSameWishlistItem = (item, id, productType) =>
+    String(item.id) === String(id) &&
+    normalizeProductType(item.productType) === normalizeProductType(productType);
+
   const addToWishlist = (product) => {
     const userId = getCurrentUserId();
     if (!userId) return; // Guest tidak bisa menambah
 
-    if (!wishlistItems.find((item) => item.id === product.id)) {
-      setWishlistItems([...wishlistItems, product]);
+    const normalizedProduct = {
+      ...product,
+      productType: normalizeProductType(product.productType),
+    };
+
+    if (
+      !wishlistItems.find((item) =>
+        isSameWishlistItem(item, normalizedProduct.id, normalizedProduct.productType)
+      )
+    ) {
+      setWishlistItems([...wishlistItems, normalizedProduct]);
     }
   };
 
-  const removeFromWishlist = (id) => {
-    setWishlistItems(wishlistItems.filter((item) => item.id !== id));
+  const removeFromWishlist = (id, productType) => {
+    setWishlistItems(
+      wishlistItems.filter((item) =>
+        productType !== undefined
+          ? !isSameWishlistItem(item, id, productType)
+          : String(item.id) !== String(id)
+      )
+    );
   };
 
-  const isInWishlist = (id) => {
-    return wishlistItems.some((item) => item.id === id);
+  const isInWishlist = (id, productType) => {
+    return wishlistItems.some((item) =>
+      productType !== undefined
+        ? isSameWishlistItem(item, id, productType)
+        : String(item.id) === String(id)
+    );
   };
 
   return (

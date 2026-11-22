@@ -15,7 +15,7 @@ export default function SizeGuide({ isOpen, onClose, type }) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div data-lenis-prevent className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
@@ -23,15 +23,15 @@ export default function SizeGuide({ isOpen, onClose, type }) {
             ></div>
 
             {/* Modal Content */}
-            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl animate-fade-in-up">
+            <div data-lenis-prevent className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl border border-gray-100 dark:border-gray-800 animate-fade-in-up">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex justify-between items-center z-20">
+                <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-6 flex justify-between items-center z-20">
                     <h2 className="text-xl font-black uppercase tracking-wide">
                         Size Guide - {type === "apparel" ? "Apparel" : "Sneakers"}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
                         ✕
                     </button>
@@ -45,7 +45,7 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                                 <h3 className="font-bold text-lg mb-4">Men's Tops (T-Shirts, Hoodies, Jackets)</h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500">
+                                        <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase font-bold text-gray-500 dark:text-gray-400">
                                             <tr>
                                                 <th className="px-4 py-3 rounded-l-lg">Size</th>
                                                 <th className="px-4 py-3">Chest (cm)</th>
@@ -53,7 +53,7 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                                                 <th className="px-4 py-3 rounded-r-lg">Hips (cm)</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100">
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                             <tr>
                                                 <td className="px-4 py-3 font-bold">XS</td>
                                                 <td className="px-4 py-3">80 - 88</td>
@@ -97,22 +97,22 @@ export default function SizeGuide({ isOpen, onClose, type }) {
 
                             <div>
                                 <h3 className="font-bold text-lg mb-4">How to Measure</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-2xl">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-800/70 p-6 rounded-2xl">
                                     <div className="space-y-2">
                                         <h4 className="font-bold text-sm">1. Chest</h4>
-                                        <p className="text-xs text-gray-500 leading-relaxed">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                             Measure around the fullest part of your chest, keeping the tape measure horizontal.
                                         </p>
                                     </div>
                                     <div className="space-y-2">
                                         <h4 className="font-bold text-sm">2. Waist</h4>
-                                        <p className="text-xs text-gray-500 leading-relaxed">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                             Measure around the narrowest part (typically where your body bends side to side), keeping the tape horizontal.
                                         </p>
                                     </div>
                                     <div className="space-y-2">
                                         <h4 className="font-bold text-sm">3. Hips</h4>
-                                        <p className="text-xs text-gray-500 leading-relaxed">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                             Measure around the fullest part of your hips, keeping the tape horizontal.
                                         </p>
                                     </div>
@@ -125,7 +125,7 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                                 <h3 className="font-bold text-lg mb-4">Sneakers Size Chart</h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-center">
-                                        <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500">
+                                        <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase font-bold text-gray-500 dark:text-gray-400">
                                             <tr>
                                                 <th className="px-4 py-3 rounded-l-lg">EU</th>
                                                 <th className="px-4 py-3">US (Men)</th>
@@ -134,7 +134,7 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                                                 <th className="px-4 py-3 rounded-r-lg">CM</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100">
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                             <tr>
                                                 <td className="px-4 py-3 font-bold">38</td>
                                                 <td className="px-4 py-3">5.5</td>
@@ -203,9 +203,9 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                                 </div>
                             </div>
 
-                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3 items-start">
+                            <div className="bg-orange-50 dark:bg-orange-500/10 p-4 rounded-xl border border-orange-100 dark:border-orange-500/20 flex gap-3 items-start">
                                 <span className="text-xl">💡</span>
-                                <p className="text-xs text-orange-800 leading-relaxed">
+                                <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
                                     <strong>Pro Tip:</strong> If you are in between sizes, we recommend sizing up for a more comfortable fit, especially for running shoes.
                                 </p>
                             </div>

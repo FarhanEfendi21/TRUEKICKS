@@ -20,7 +20,7 @@ export default function Footer({ showOnMobile = false }) {
           {/* Brand Section */}
           <div className="col-span-2 md:col-span-1 text-center md:text-left">
             <Link to="/home" className="inline-block">
-              <h2 className="text-3xl font-black italic tracking-tighter text-gray-900 select-none hover:scale-105 transition-transform">
+              <h2 className="text-3xl font-black italic tracking-tighter text-gray-900 dark:text-white select-none hover:scale-105 transition-transform">
                 TRUE<span className="text-[#FF5500]">KICKS</span>
               </h2>
             </Link>
@@ -32,7 +32,7 @@ export default function Footer({ showOnMobile = false }) {
                 href="https://www.instagram.com/efndfrhn"
                 target="_blank"
                 rel="noreferrer"
-                className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-white hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200"
+                className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-gray-800 flex items-center justify-center text-white hover:bg-[#FF5500] dark:hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
@@ -44,7 +44,7 @@ export default function Footer({ showOnMobile = false }) {
                 href="https://github.com/FarhanEfendi21/kapanselesainya"
                 target="_blank"
                 rel="noreferrer"
-                className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-white hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200"
+                className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-gray-800 flex items-center justify-center text-white hover:bg-[#FF5500] dark:hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
@@ -55,39 +55,39 @@ export default function Footer({ showOnMobile = false }) {
 
           {/* Shop Links */}
           <div className="text-center md:text-left">
-            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
               Shop
             </h3>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/sneakers" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sneakers</Link></li>
-              <li><Link to="/apparel" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Apparel</Link></li>
-              <li><Link to="/sale" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sale</Link></li>
+              <li><Link to="/sneakers" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sneakers</Link></li>
+              <li><Link to="/apparel" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Apparel</Link></li>
+              <li><Link to="/sale" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sale</Link></li>
             </ul>
           </div>
 
           {/* Account Links */}
           <div className="text-center md:text-left">
-            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
               Account
             </h3>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/profile" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Profile</Link></li>
-              <li><Link to="/cart" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Cart</Link></li>
-              <li><Link to="/wishlist" className="text-gray-500 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Wishlist</Link></li>
+              <li><Link to="/profile" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Profile</Link></li>
+              <li><Link to="/cart" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Cart</Link></li>
+              <li><Link to="/wishlist" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Wishlist</Link></li>
             </ul>
           </div>
 
           {/* Contact Section */}
           <div className="col-span-2 md:col-span-1 text-center md:text-left">
-            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
               Contact
             </h3>
 
             {/* Phone Number */}
-            <p className="text-sm text-gray-600 font-medium mb-3">+62 813-9246-0881</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium mb-3">+62 813-9246-0881</p>
 
             {/* WhatsApp Button - Simple */}
             <a
@@ -105,7 +105,7 @@ export default function Footer({ showOnMobile = false }) {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-10 pt-6 border-t border-gray-200/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="mt-10 pt-6 border-t border-gray-200/50 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-gray-400 flex items-center gap-2">
             <span>&copy; 2024 TrueKicks Indonesia</span>
             <span className="hidden sm:inline">•</span>

@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useLenis } from "lenis/react";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
 import { supabase } from "../lib/supabaseClient";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import SizeGuide from "../components/SizeGuide";
 
 // --- HELPER COMPONENTS (Tidak Berubah) ---
@@ -44,16 +45,16 @@ const StarRating = ({ rating, interactive = false, setRating }) => {
 
 const AccordionItem = ({ title, isOpen, onClick, children }) => {
   return (
-    <div className="border-b border-gray-100 last:border-none">
+    <div className="border-b border-gray-100 dark:border-gray-800 last:border-none">
       <button
         className="w-full py-5 flex justify-between items-center text-left group"
         onClick={onClick}
       >
-        <span className="font-bold text-gray-900 text-sm uppercase tracking-wider group-hover:text-black transition-colors">
+        <span className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider group-hover:text-black dark:group-hover:text-[#FF5500] transition-colors">
           {title}
         </span>
         <span
-          className={`transform transition-transform duration-300 text-gray-400 group-hover:text-black ${isOpen ? "rotate-45" : "rotate-0"
+          className={`transform transition-transform duration-300 text-gray-400 group-hover:text-black dark:group-hover:text-white ${isOpen ? "rotate-45" : "rotate-0"
             }`}
         >
           <svg
@@ -78,7 +79,7 @@ const AccordionItem = ({ title, isOpen, onClick, children }) => {
           : "grid-rows-[0fr] opacity-0"
           }`}
       >
-        <div className="overflow-hidden text-gray-500 text-sm leading-relaxed">
+        <div className="overflow-hidden text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
           {children}
         </div>
       </div>
@@ -91,6 +92,7 @@ const AccordionItem = ({ title, isOpen, onClick, children }) => {
 export default function ProductDetail() {
   const { type, id } = useParams();
   const navigate = useNavigate();
+  const lenis = useLenis();
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -124,8 +126,13 @@ export default function ProductDetail() {
   const sizes = isApparel ? apparelSizes : shoeSizes;
   // ------------------------------------
 
+  const effectivePrice =
+    type === "sale_products" && product?.discount_price != null
+      ? Number(product.discount_price)
+      : Number(product?.price || 0);
+
   // LOGIKA UTAMA
-  const isLiked = product ? isInWishlist(product.id) : false;
+  const isLiked = product ? isInWishlist(product.id, type) : false;
 
   const handleWishlistToggle = () => {
     if (!user) {
@@ -135,13 +142,13 @@ export default function ProductDetail() {
     }
     if (!product) return;
     if (isLiked) {
-      removeFromWishlist(product.id);
+      removeFromWishlist(product.id, type);
       toast.success(`${product.name} removed from Wishlist!`); // --- NOTIFIKASI BARU ---
     } else {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: effectivePrice,
         image: product.image_url,
         productType: type, // Include product type for navigation
       });
@@ -200,15 +207,15 @@ export default function ProductDetail() {
     }
     addToCart({
       id: product.id,
+      productType: type,
       name: product.name,
-      // UBAH: Kirim harga asli (price) karena final_price sudah tidak ada
-      price: product.price,
+      price: effectivePrice,
       image: product.image_url,
       size: selectedSize,
       quantity: quantity,
     });
     toast.success(
-      `Added to bag at Rp ${(product.price / 1000).toLocaleString()}K`
+      `Added to bag at Rp ${(effectivePrice / 1000).toLocaleString()}K`
     );
   };
 
@@ -219,16 +226,14 @@ export default function ProductDetail() {
       navigate("/login");
       return;
     }
-    if (!newComment) return toast.error("Please write a comment"); // --- NOTIFIKASI BARU ---
+    if (!newComment.trim()) return toast.error("Please write a comment"); // --- NOTIFIKASI BARU ---
 
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-      await axios.post(`${API_URL}/api/reviews`, {
-        product_id: id,
+      await api.post("/api/reviews", {
+        product_id: Number(id),
         product_type: type,
-        user_id: user.id,
         rating: newRating,
-        comment: newComment,
+        comment: newComment.trim(),
       });
 
       setNewComment("");
@@ -236,7 +241,11 @@ export default function ProductDetail() {
       toast.success("Review submitted successfully!"); // --- NOTIFIKASI BARU ---
     } catch (error) {
       console.error("Failed to submit review", error);
-      toast.error("Error submitting review. Please try again."); // --- NOTIFIKASI BARU ---
+      const errMsg =
+        error.response?.data?.errors?.[0] ||
+        error.response?.data?.message ||
+        "Error submitting review. Please try again.";
+      toast.error(errMsg);
     }
   };
 
@@ -263,20 +272,14 @@ export default function ProductDetail() {
         }
         // =========================
 
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
-        // === 2. Gunakan URL tersebut untuk fetch Detail Produk ===
-        const productRes = await axios.get(
-          `${API_URL}/api/detail/${type}/${id}`
-        );
+        // === 2. Gunakan instance api untuk fetch Detail Produk ===
+        const productRes = await api.get(`/api/detail/${type}/${id}`);
 
         setProduct(productRes.data);
         setActiveImage(productRes.data.image_url);
 
         // Bagian Reviews: Fetch dari Backend API
-        const reviewsRes = await axios.get(
-          `${API_URL}/api/reviews/${id}?type=${type}`
-        );
+        const reviewsRes = await api.get(`/api/reviews/${id}?type=${type}`);
         setReviews(reviewsRes.data || []);
 
         // === FETCH SIMILAR PRODUCTS ===
@@ -349,10 +352,10 @@ export default function ProductDetail() {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-widest animate-pulse">
+          <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-black dark:border-t-[#FF5500] rounded-full animate-spin"></div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest animate-pulse">
             Loading Product...
           </p>
         </div>
@@ -361,7 +364,7 @@ export default function ProductDetail() {
 
   if (!product)
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
         Product not found.
       </div>
     );
@@ -376,26 +379,30 @@ export default function ProductDetail() {
 
     // 2. Beri jeda sedikit (300ms) agar browser sempat me-render accordion yang terbuka
     setTimeout(() => {
-      reviewsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start", // Scroll hingga bagian atas review pas di atas layar
-      });
+      if (lenis && reviewsRef.current) {
+        lenis.scrollTo(reviewsRef.current, { offset: -96 });
+      } else {
+        reviewsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start", // Scroll hingga bagian atas review pas di atas layar
+        });
+      }
     }, 300);
   };
 
   return (
-    <div className="min-h-screen bg-white font-poppins text-gray-900">
+    <div className="min-h-screen bg-white dark:bg-gray-950 font-poppins text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <Navbar />
       <main className="pt-24 pb-32 md:pt-28 md:pb-20 max-w-7xl mx-auto px-4 md:px-6">
         {/* BREADCRUMB */}
         <nav className="text-[10px] md:text-xs font-medium text-gray-400 mb-6 md:mb-10 flex items-center gap-2 md:gap-3 uppercase tracking-wide overflow-hidden whitespace-nowrap">
           <span
             onClick={() => navigate("/home")}
-            className="cursor-pointer hover:text-black transition-colors"
+            className="cursor-pointer hover:text-black dark:hover:text-white transition-colors"
           >
             Home
           </span>
-          <span className="text-gray-300">/</span>
+          <span className="text-gray-300 dark:text-gray-700">/</span>
 
           <span
             onClick={() => {
@@ -411,7 +418,7 @@ export default function ProductDetail() {
                 navigate(`/${type}`);
               }
             }}
-            className="cursor-pointer hover:text-black transition-colors"
+            className="cursor-pointer hover:text-black dark:hover:text-white transition-colors"
           >
             {type === "sale_products"
               ? "SALE"
@@ -424,8 +431,8 @@ export default function ProductDetail() {
                 : type}
           </span>
 
-          <span className="text-gray-300">/</span>
-          <span className="text-black font-semibold truncate max-w-[150px] md:max-w-[250px]">
+          <span className="text-gray-300 dark:text-gray-700">/</span>
+          <span className="text-black dark:text-white font-semibold truncate max-w-[150px] md:max-w-[250px]">
             {product.name}
           </span>
         </nav>
@@ -492,30 +499,39 @@ export default function ProductDetail() {
           {/* === KANAN: INFO PRODUK === */}
           <div className="lg:col-span-5 flex flex-col">
             <div className="mb-6">
-              <h2 className="text-orange-600 font-bold text-xs uppercase tracking-[0.25em] mb-3">
+              <h2 className="text-orange-600 dark:text-[#FF5500] font-bold text-xs uppercase tracking-[0.25em] mb-3">
                 {product.category}
               </h2>
-              <h1 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight mb-5">
+              <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white leading-tight mb-5">
                 {product.name}
               </h1>
 
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-8">
-                <span className="text-3xl font-bold text-gray-900">
-                  Rp {(product.price / 1000).toLocaleString()}K
-                </span>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                    Rp {(effectivePrice / 1000).toLocaleString()}K
+                  </span>
+                  {type === "sale_products" &&
+                    product.discount_price != null &&
+                    Number(product.discount_price) < Number(product.price) && (
+                      <span className="text-base text-gray-400 line-through">
+                        Rp {(product.price / 1000).toLocaleString()}K
+                      </span>
+                    )}
+                </div>
 
                 <div
                   className="flex items-center gap-2 cursor-pointer group"
                   onClick={handleScrollToReviews}
                 >
-                  <div className="flex items-center gap-3 text-sm border-l-2 border-gray-200 pl-6 py-1">
+                  <div className="flex items-center gap-3 text-sm border-l-2 border-gray-200 dark:border-gray-800 pl-6 py-1">
                     <StarRating rating={Math.round(averageRating)} />
-                    <span className="text-gray-700 font-bold ml-1">
+                    <span className="text-gray-700 dark:text-gray-200 font-bold ml-1">
                       {averageRating}
                     </span>
                     <span
                       onClick={() => toggleAccordion("reviews")}
-                      className="text-gray-400 underline decoration-gray-300 underline-offset-4 cursor-pointer hover:text-black transition-colors"
+                      className="text-gray-400 underline decoration-gray-300 dark:decoration-gray-700 underline-offset-4 cursor-pointer hover:text-black dark:hover:text-white transition-colors"
                     >
                       ({reviews.length} Reviews)
                     </span>
@@ -523,17 +539,17 @@ export default function ProductDetail() {
                 </div>
               </div>
             </div>
-            <div className="w-full h-px bg-gray-100 mb-8"></div>
+            <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-8"></div>
 
             {/* SIZE SELECTOR */}
             <div className="mb-10">
               <div className="flex justify-between items-end mb-5">
-                <span className="font-bold text-sm uppercase tracking-wider text-gray-900">
+                <span className="font-bold text-sm uppercase tracking-wider text-gray-900 dark:text-white">
                   {type === "apparel" ? "Select Size" : "Select Size (EU)"}
                 </span>
                 <button
                   onClick={() => setShowSizeGuide(true)}
-                  className="text-xs font-medium text-gray-500 underline underline-offset-4 hover:text-black transition-colors"
+                  className="text-xs font-medium text-gray-500 dark:text-gray-400 underline underline-offset-4 hover:text-black dark:hover:text-white transition-colors"
                 >
                   Size Guide
                 </button>
@@ -552,8 +568,8 @@ export default function ProductDetail() {
 
                       className={`h-14 rounded-xl border-2 text-sm font-bold transition-all duration-200 relative overflow-hidden active:scale-95
                         ${isSelected
-                          ? "bg-black text-white border-black shadow-md transform scale-[1.02]"
-                          : "bg-white text-gray-900 border-gray-200 hover:border-black hover:bg-gray-50"
+                          ? "bg-black dark:bg-[#FF5500] text-white border-black dark:border-[#FF5500] shadow-md transform scale-[1.02]"
+                          : "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-gray-800"
                         }`}
                     >
                       {size}
@@ -572,25 +588,25 @@ export default function ProductDetail() {
             {/* ACTION BUTTONS (ENFORCEMENT HERE) */}
             <div className="flex flex-col md:flex-row gap-4 mb-8 md:mb-12">
               {/* Quantity: Full Width di Mobile */}
-              <div className="flex items-center justify-between md:justify-start bg-gray-50 border-2 border-gray-100 rounded-full h-14 md:h-16 px-6 md:px-5 w-full md:w-auto md:gap-6">
-                <span className="md:hidden font-bold text-xs text-gray-500 uppercase tracking-wide">
+              <div className="flex items-center justify-between md:justify-start bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-full h-14 md:h-16 px-6 md:px-5 w-full md:w-auto md:gap-6">
+                <span className="md:hidden font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Quantity
                 </span>
                 <div className="flex items-center gap-4 md:gap-6">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     disabled={!user}
-                    className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 hover:text-black transition-colors bg-white md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50"
+                    className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors bg-white dark:bg-gray-800 md:bg-transparent dark:md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50"
                   >
                     -
                   </button>
-                  <span className="font-bold w-4 text-center text-base md:text-lg">
+                  <span className="font-bold w-4 text-center text-base md:text-lg dark:text-white">
                     {quantity}
                   </span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
                     disabled={!user}
-                    className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 hover:text-black transition-colors bg-white md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50"
+                    className="w-8 h-8 flex items-center justify-center text-lg md:text-xl text-gray-500 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors bg-white dark:bg-gray-800 md:bg-transparent dark:md:bg-transparent rounded-full md:rounded-none shadow-sm md:shadow-none hover:bg-gray-100 md:hover:bg-transparent disabled:opacity-50"
                   >
                     +
                   </button>
@@ -605,8 +621,8 @@ export default function ProductDetail() {
                   disabled={!user || !selectedSize}
                   className={`flex-1 text-white h-14 md:h-16 rounded-full font-bold text-[10px] md:text-sm uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 md:gap-3 group relative overflow-hidden shadow-md md:shadow-none
                         ${!user || !selectedSize
-                      ? "bg-gray-400 cursor-not-allowed opacity-70"
-                      : "bg-gradient-to-r from-gray-900 to-black hover:shadow-lg hover:shadow-black/30"
+                      ? "bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-70"
+                      : "bg-gradient-to-r from-gray-900 to-black dark:from-[#FF5500] dark:to-orange-600 hover:shadow-lg hover:shadow-black/30 dark:hover:shadow-orange-500/30"
                     }`}
                 >
                   <span className="relative z-10 whitespace-nowrap">
@@ -634,10 +650,10 @@ export default function ProductDetail() {
                   disabled={!user}
                   className={`w-14 h-14 md:w-16 md:h-16 border-2 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 group flex-shrink-0
                         ${!user
-                      ? "border-gray-200 text-gray-300 opacity-60 cursor-not-allowed"
+                      ? "border-gray-200 dark:border-gray-800 text-gray-300 dark:text-gray-600 opacity-60 cursor-not-allowed"
                       : isLiked
-                        ? "border-red-500 bg-red-50 text-red-500"
-                        : "border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50"
+                        ? "border-red-500 bg-red-50 dark:bg-red-950/40 text-red-500"
+                        : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
                     }`}
                 >
                   <svg
@@ -659,28 +675,28 @@ export default function ProductDetail() {
             </div>
 
             {/* TRUST BADGES (CLEANER) */}
-            <div className="grid grid-cols-3 gap-6 mb-10 py-8 border-y border-gray-100 bg-gray-50/50 rounded-2xl px-4">
+            <div className="grid grid-cols-3 gap-6 mb-10 py-8 border-y border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900 rounded-2xl px-4">
               <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">
+                <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-xl shadow-sm">
                   📦
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
                   Free Shipping
                 </span>
               </div>
               <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">
+                <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-xl shadow-sm">
                   🛡️
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
                   Authentic
                 </span>
               </div>
               <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">
+                <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-xl shadow-sm">
                   ↩️
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
                   Easy Returns
                 </span>
               </div>
@@ -728,9 +744,9 @@ export default function ProductDetail() {
                     {user ? (
                       <form
                         onSubmit={handleSubmitReview}
-                        className="bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm"
+                        className="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm"
                       >
-                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wide">
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-4 uppercase tracking-wide">
                           Write a Review as {user.full_name}
                         </h4>
                         <div className="mb-4">
@@ -741,7 +757,7 @@ export default function ProductDetail() {
                           />
                         </div>
                         <textarea
-                          className="w-full p-4 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none transition-all"
+                          className="w-full p-4 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:ring-1 focus:ring-black dark:focus:ring-[#FF5500] resize-none transition-all"
                           rows="3"
                           placeholder="How was the product? Share your thoughts..."
                           value={newComment}
@@ -749,19 +765,19 @@ export default function ProductDetail() {
                         ></textarea>
                         <button
                           type="submit"
-                          className="mt-4 bg-black text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors"
+                          className="mt-4 bg-black dark:bg-[#FF5500] text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-orange-600 transition-colors"
                         >
                           Submit Review
                         </button>
                       </form>
                     ) : (
-                      <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-center shadow-sm">
-                        <p className="text-sm font-medium text-gray-600 mb-3">
+                      <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-center shadow-sm">
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
                           Please login to share your experience.
                         </p>
                         <button
                           onClick={() => navigate("/login")}
-                          className="text-xs font-bold uppercase tracking-wider underline underline-offset-4 hover:text-black transition-colors"
+                          className="text-xs font-bold uppercase tracking-wider underline underline-offset-4 text-gray-900 dark:text-white hover:text-[#FF5500] transition-colors"
                         >
                           Login to Write a Review
                         </button>
@@ -769,7 +785,7 @@ export default function ProductDetail() {
                     )}
 
                     {reviews.length === 0 ? (
-                      <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <div className="text-center py-8 bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
                         <p className="text-gray-400 italic font-medium">
                           No reviews yet. Be the first to review!
                         </p>
@@ -779,9 +795,9 @@ export default function ProductDetail() {
                         {reviews.map((review) => (
                           <div
                             key={review.id}
-                            className="flex gap-5 border-b border-gray-100 pb-6 last:border-0 animate-fade-in"
+                            className="flex gap-5 border-b border-gray-100 dark:border-gray-800 pb-6 last:border-0 animate-fade-in"
                           >
-                            <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 rounded-full flex items-center justify-center font-bold text-gray-700 text-sm flex-shrink-0 shadow-sm">
+                            <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border border-gray-300 dark:border-gray-700 rounded-full flex items-center justify-center font-bold text-gray-700 dark:text-gray-200 text-sm flex-shrink-0 shadow-sm">
                               {review.users?.full_name
                                 ? review.users.full_name.charAt(0).toUpperCase()
                                 : "U"}
@@ -789,7 +805,7 @@ export default function ProductDetail() {
                             <div className="flex-grow">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
-                                  <p className="font-bold text-sm text-gray-900">
+                                  <p className="font-bold text-sm text-gray-900 dark:text-white">
                                     {review.users?.full_name || "Anonymous"}
                                   </p>
                                   <div className="flex items-center gap-3 mt-1">
@@ -800,7 +816,7 @@ export default function ProductDetail() {
                                   </div>
                                 </div>
                               </div>
-                              <p className="text-sm text-gray-700 leading-relaxed bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-gray-50/50 dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
                                 "{review.comment}"
                               </p>
                             </div>
@@ -817,8 +833,8 @@ export default function ProductDetail() {
 
         {/* === RECOMMENDATIONS SECTION === */}
         {similarProducts.length > 0 && (
-          <div className="mt-20 md:mt-32 border-t border-gray-100 pt-16">
-            <h3 className="text-2xl md:text-3xl font-black text-gray-900 mb-8 tracking-tight uppercase">
+          <div className="mt-20 md:mt-32 border-t border-gray-100 dark:border-gray-800 pt-16">
+            <h3 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white mb-8 tracking-tight uppercase">
               You Might Also Like
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -827,22 +843,32 @@ export default function ProductDetail() {
                   key={item.id}
                   onClick={() => {
                     navigate(`/product/${type}/${item.id}`);
-                    window.scrollTo(0, 0);
+                    if (lenis) {
+                      lenis.scrollTo(0, { immediate: true });
+                    } else {
+                      window.scrollTo(0, 0);
+                    }
                   }}
                   className="group cursor-pointer"
                 >
-                  <div className="bg-gray-50 rounded-3xl aspect-square flex items-center justify-center p-4 mb-4 relative overflow-hidden transition-all duration-500 hover:shadow-lg">
+                  <div className="bg-gray-50 dark:bg-gray-100 rounded-3xl aspect-square flex items-center justify-center p-4 mb-4 relative overflow-hidden transition-all duration-500 hover:shadow-lg">
                     <img
                       src={item.image_url}
                       alt={item.name}
                       className="w-[85%] h-[85%] object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3"
                     />
                   </div>
-                  <h4 className="font-bold text-sm md:text-base text-gray-900 line-clamp-1 group-hover:text-[#FF5500] transition-colors">
+                  <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 group-hover:text-[#FF5500] transition-colors">
                     {item.name}
                   </h4>
                   <p className="text-xs text-gray-500 font-medium mt-1">
-                    Rp {(item.price / 1000).toLocaleString()}K
+                    Rp{" "}
+                    {(
+                      (type === "sale_products" && item.discount_price != null
+                        ? Number(item.discount_price)
+                        : Number(item.price)) / 1000
+                    ).toLocaleString()}
+                    K
                   </p>
                 </div>
               ))}
@@ -851,40 +877,6 @@ export default function ProductDetail() {
         )}
       </main>
       <Footer />
-      <Toaster
-        position="bottom-right"
-        reverseOrder={false}
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "#333",
-            color: "#fff",
-            fontSize: "14px",
-            padding: "12px 18px",
-            borderRadius: "10px",
-          },
-          success: {
-            iconTheme: {
-              primary: "#6EE7B7", // Tailwind green-300
-              secondary: "#1F2937", // Tailwind gray-800
-            },
-            style: {
-              background: "#1F2937",
-              color: "#D1FAE5", // Tailwind green-100
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: "#FCA5A5", // Tailwind red-300
-              secondary: "#FFF",
-            },
-            style: {
-              background: "#EF4444", // Tailwind red-500
-              color: "#FEF2F2", // Tailwind red-50
-            },
-          },
-        }}
-      />
 
       {/* SIZE GUIDE MODAL */}
       <SizeGuide

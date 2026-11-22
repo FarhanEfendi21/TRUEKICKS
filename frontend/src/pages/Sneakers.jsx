@@ -1,41 +1,49 @@
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SneakersBanner from "../components/SneakersBanner";
-import LazyImage from "../components/LazyImage";
 import { supabase } from "../lib/supabaseClient";
 import Pagination from "../components/Pagination";
 import ProductCard from "../components/ProductCard";
 
- 
+const BRAND_CATEGORIES = [
+  "All",
+  "Nike",
+  "Adidas",
+  "New Balance",
+  "Puma",
+  "Converse",
+  "Vans",
+  "Salomon",
+  "ASICS",
+];
 
 export default function Sneakers() {
   const location = useLocation();
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const initialTypeFilter = location.state?.typeFilter || "All Types";
+  const [searchKeyword, setSearchKeyword] = useState(location.state?.keyword || "");
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [activeTypeFilter, setActiveTypeFilter] = useState(initialTypeFilter);
+  const [activeCategory, setActiveCategory] = useState(() => {
+    if (location.state?.brand) {
+      return (
+        BRAND_CATEGORIES.find(
+          (b) => b.toLowerCase() === location.state.brand.toLowerCase()
+        ) || location.state.brand
+      );
+    }
+    return location.state?.category || "All";
+  });
+  const [activeTypeFilter, setActiveTypeFilter] = useState(
+    location.state?.typeFilter || "All Types"
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [reviews, setReviews] = useState([]);
-  const navigate = useNavigate();
 
-  // --- DATA FILTER ---F
-  const brandCategories = [
-    "All",
-    "Nike",
-    "Adidas",
-    "New Balance",
-    "Puma",
-    "Converse",
-    "Vans",
-    "Salomon",
-    "ASICS",
-  ];
+  // --- DATA FILTER ---
+  const brandCategories = BRAND_CATEGORIES;
   const [shoeTypes, setShoeTypes] = useState([
     "All Types",
     "Running",
@@ -66,67 +74,6 @@ export default function Sneakers() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage]);
-
-  // --- FUNGSI UTAMA UNTUK FILTERING SIMULTAN ---
-  const applyFilter = (list, keyword, brand, shoeType, priceMin, priceMax, sort) => {
-    let result = list;
-
-    // 1. Filter Berdasarkan Brand
-    if (brand !== "All") {
-      const lowerBrand = brand.toLowerCase();
-      result = result.filter(
-        (item) =>
-          (item.category || "").toLowerCase().includes(lowerBrand) ||
-          (item.name || "").toLowerCase().includes(lowerBrand)
-      );
-    }
-
-    // 2. Filter Berdasarkan Tipe Sepatu
-    if (shoeType !== "All Types") {
-      const lowerShoeType = shoeType.toLowerCase();
-      result = result.filter((item) => {
-        const itemCat = (item.categories || "").toLowerCase();
-        return itemCat.includes(lowerShoeType);
-      });
-    }
-
-    // 3. Filter Berdasarkan Keyword Pencarian
-    if (keyword) {
-      const lowerKeyword = keyword.toLowerCase();
-      result = result.filter(
-        (item) =>
-          (item.name || "").toLowerCase().includes(lowerKeyword) ||
-          (item.description || "").toLowerCase().includes(lowerKeyword) ||
-          (item.category || "").toLowerCase().includes(lowerKeyword) ||
-          (item.categories || "").toLowerCase().includes(lowerKeyword)
-      );
-    }
-
-    // 4. Filter Berdasarkan Price Range
-    result = result.filter(
-      (item) => item.price >= priceMin && item.price <= priceMax
-    );
-
-    // 5. Sort
-    switch (sort) {
-      case "price-asc":
-        result = [...result].sort((a, b) => a.price - b.price);
-        break;
-      case "price-desc":
-        result = [...result].sort((a, b) => b.price - a.price);
-        break;
-      case "reviewed":
-        // Will be handled separately with reviews data
-        break;
-      case "newest":
-      default:
-        result = [...result].sort((a, b) => b.id - a.id);
-        break;
-    }
-
-    return result;
-  };
-  // -------------------------------------
 
   // --- USE EFFECT: FETCH KATEGORI DARI SUPABASE ---
   useEffect(() => {
@@ -161,30 +108,12 @@ export default function Sneakers() {
     fetchCategories();
   }, []);
 
-  // --- USE EFFECT: FETCH PRODUCTS & APPLY INITIAL FILTER ---
+  // --- USE EFFECT: FETCH PRODUCTS ONCE ON MOUNT ---
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // 1. Ambil URL Backend dari Environment Variable
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
-        // 2. Gunakan URL dinamis
-        const response = await axios.get(`${API_URL}/api/sneakers`);
-
-        const fetchedProducts = response.data;
-        setProducts(fetchedProducts);
-
-        // Logic filter tetap sama
-        const initialFiltered = applyFilter(
-          fetchedProducts,
-          searchKeyword,
-          activeCategory,
-          initialTypeFilter,
-          priceRange[0],
-          priceRange[1],
-          sortOption
-        );
-        setFilteredProducts(initialFiltered);
+        const response = await api.get("/api/sneakers");
+        setProducts(response.data || []);
       } catch (error) {
         console.error("Gagal mengambil data:", error);
       } finally {
@@ -192,16 +121,13 @@ export default function Sneakers() {
       }
     };
     fetchProducts();
-    // Pastikan dependency array sudah sesuai kebutuhan logic kamu
-  }, [searchKeyword, initialTypeFilter, activeCategory]);
+  }, []);
 
   // --- USE EFFECT: FETCH ALL REVIEWS ---
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-        const response = await axios.get(`${API_URL}/api/all-reviews`);
-        console.log("Fetched reviews:", response.data);
+        const response = await api.get("/api/all-reviews");
         setReviews(response.data || []);
       } catch (error) {
         console.error("Failed to fetch reviews:", error);
@@ -210,21 +136,28 @@ export default function Sneakers() {
     fetchReviews();
   }, []);
 
+  // --- USE EFFECT: SYNC FILTER STATE FROM NAVBAR / SEARCH NAVIGATION ---
   useEffect(() => {
     if (location.state) {
-      // Jika ada filter kategori (misal: Running, Basketball)
-      if (location.state.category) {
-        setActiveCategory(location.state.category);
-        setSearchKeyword(""); // Reset keyword
-      }
-      // Jika ada filter brand atau model (misal: Nike, Air Jordan)
-      else if (location.state.brand) {
-        setActiveCategory("All"); // Reset kategori
-        setSearchKeyword(location.state.brand);
-      }
-      // Jika ada keyword umum (Search bar)
-      else if (location.state.keyword) {
+      if (location.state.typeFilter) {
+        setActiveTypeFilter(location.state.typeFilter);
         setActiveCategory("All");
+        setSearchKeyword("");
+      } else if (location.state.category) {
+        setActiveCategory(location.state.category);
+        setActiveTypeFilter("All Types");
+        setSearchKeyword("");
+      } else if (location.state.brand) {
+        const matchedBrand =
+          BRAND_CATEGORIES.find(
+            (b) => b.toLowerCase() === location.state.brand.toLowerCase()
+          ) || location.state.brand;
+        setActiveCategory(matchedBrand);
+        setActiveTypeFilter("All Types");
+        setSearchKeyword("");
+      } else if (location.state.keyword) {
+        setActiveCategory("All");
+        setActiveTypeFilter("All Types");
         setSearchKeyword(location.state.keyword);
       }
 
@@ -234,80 +167,94 @@ export default function Sneakers() {
       // Clear state agar refresh tidak re-apply filter
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]); // Jalankan setiap kali lokasi/state berubah
+  }, [location.state]);
+
+  // --- USE EFFECT: APPLY CLIENT-SIDE FILTERS & SORT WITHOUT REFETCH ---
+  useEffect(() => {
+    let result = products;
+
+    // 1. Filter Berdasarkan Brand
+    if (activeCategory !== "All") {
+      const lowerBrand = activeCategory.toLowerCase();
+      result = result.filter(
+        (item) =>
+          (item.category || "").toLowerCase().includes(lowerBrand) ||
+          (item.name || "").toLowerCase().includes(lowerBrand)
+      );
+    }
+
+    // 2. Filter Berdasarkan Tipe Sepatu
+    if (activeTypeFilter !== "All Types") {
+      const lowerShoeType = activeTypeFilter.toLowerCase();
+      result = result.filter((item) => {
+        const itemCat = (item.categories || "").toLowerCase();
+        return itemCat.includes(lowerShoeType);
+      });
+    }
+
+    // 3. Filter Berdasarkan Keyword Pencarian
+    if (searchKeyword) {
+      const lowerKeyword = searchKeyword.toLowerCase();
+      result = result.filter(
+        (item) =>
+          (item.name || "").toLowerCase().includes(lowerKeyword) ||
+          (item.description || "").toLowerCase().includes(lowerKeyword) ||
+          (item.category || "").toLowerCase().includes(lowerKeyword) ||
+          (item.categories || "").toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    // 4. Filter Berdasarkan Price Range
+    result = result.filter(
+      (item) => item.price >= priceRange[0] && item.price <= priceRange[1]
+    );
+
+    // 5. Sort
+    switch (sortOption) {
+      case "price-asc":
+        result = [...result].sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        result = [...result].sort((a, b) => b.price - a.price);
+        break;
+      case "reviewed":
+        result = [...result].sort((a, b) => {
+          const aReviews = reviews.filter(
+            (r) => String(r.product_id) === String(a.id) && r.product_type === "sneakers"
+          ).length;
+          const bReviews = reviews.filter(
+            (r) => String(r.product_id) === String(b.id) && r.product_type === "sneakers"
+          ).length;
+          return bReviews - aReviews;
+        });
+        break;
+      default:
+        result = [...result].sort((a, b) => b.id - a.id);
+        break;
+    }
+
+    setFilteredProducts(result);
+    setCurrentPage(1);
+  }, [products, searchKeyword, activeCategory, activeTypeFilter, priceRange, sortOption, reviews]);
 
   // Handler untuk Filter Brand
   const handleBrandFilter = (category) => {
     setActiveCategory(category);
-    setCurrentPage(1);
-    const result = applyFilter(
-      products,
-      searchKeyword,
-      category,
-      activeTypeFilter,
-      priceRange[0],
-      priceRange[1],
-      sortOption
-    );
-    setFilteredProducts(result);
   };
 
   // Handler untuk Filter Tipe Sepatu
   const handleTypeFilter = (type) => {
     setActiveTypeFilter(type);
-    setCurrentPage(1);
-    const result = applyFilter(
-      products,
-      searchKeyword,
-      activeCategory,
-      type,
-      priceRange[0],
-      priceRange[1],
-      sortOption
-    );
-    setFilteredProducts(result);
   };
 
   // Handler untuk Price Range
   const handlePriceChange = (newRange) => {
     setPriceRange(newRange);
-    setCurrentPage(1);
-    const result = applyFilter(
-      products,
-      searchKeyword,
-      activeCategory,
-      activeTypeFilter,
-      newRange[0],
-      newRange[1],
-      sortOption
-    );
-    setFilteredProducts(result);
   };
 
   // Handler untuk Sort
   const handleSortChange = (sort) => {
     setSortOption(sort);
-    setCurrentPage(1);
-    let result = applyFilter(
-      products,
-      searchKeyword,
-      activeCategory,
-      activeTypeFilter,
-      priceRange[0],
-      priceRange[1],
-      sort
-    );
-
-    // Handle "reviewed" sort separately (needs reviews data)
-    if (sort === "reviewed") {
-      result = [...result].sort((a, b) => {
-        const aReviews = reviews.filter(r => String(r.product_id) === String(a.id)).length;
-        const bReviews = reviews.filter(r => String(r.product_id) === String(b.id)).length;
-        return bReviews - aReviews; // Products with more reviews first
-      });
-    }
-
-    setFilteredProducts(result);
   };
 
   // Format price for display
@@ -334,7 +281,7 @@ export default function Sneakers() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-poppins transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-poppins transition-colors duration-300">
       <Navbar />
       <div className="pt-24 md:pt-32 pb-32 md:pb-20 max-w-7xl mx-auto px-4 md:px-6">
 
@@ -351,12 +298,12 @@ export default function Sneakers() {
           <div className="flex items-center justify-between mb-2 lg:mb-4 px-1">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="group flex items-center gap-3 text-gray-900 hover:text-orange-600 transition-colors"
+              className="group flex items-center gap-3 text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
             >
               <div
                 className={`p-2 rounded-full transition-colors ${showFilters
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-black dark:bg-[#FF5500] text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   }`}
               >
                 {/* Icon Filter */}
@@ -393,16 +340,15 @@ export default function Sneakers() {
             </button>
 
             {/* Tombol Reset (Opsional) - Tampil jika ada filter aktif */}
-            {(activeCategory !== "All" || activeTypeFilter !== "All Types" || priceRange[0] !== minPrice || priceRange[1] !== maxPrice || sortOption !== "newest") && (
+            {(activeCategory !== "All" || activeTypeFilter !== "All Types" || priceRange[0] !== minPrice || priceRange[1] !== maxPrice || sortOption !== "price-asc" || searchKeyword !== "") && (
               <button
                 onClick={() => {
                   setActiveCategory("All");
                   setActiveTypeFilter("All Types");
                   setPriceRange([minPrice, maxPrice]);
-                  setSortOption("newest");
+                  setSortOption("price-asc");
+                  setSearchKeyword("");
                   setCurrentPage(1);
-                  const result = applyFilter(products, searchKeyword, "All", "All Types", minPrice, maxPrice, "newest");
-                  setFilteredProducts(result);
                 }}
                 className="text-[10px] font-bold text-red-500 hover:text-red-700 underline underline-offset-2"
               >
@@ -416,7 +362,7 @@ export default function Sneakers() {
             className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
               }`}
           >
-            <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-lg space-y-6">
+            <div className="bg-white dark:bg-gray-900 p-4 md:p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-lg space-y-6">
 
               {/* ROW 1: Category & Brand side by side on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -424,7 +370,7 @@ export default function Sneakers() {
                 {/* CATEGORY */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500]"></span>
                     Category
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -437,8 +383,8 @@ export default function Sneakers() {
                           className={`
                             px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
                             ${isActive
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                              ? "bg-gray-900 dark:bg-[#FF5500] text-white border-gray-900 dark:border-[#FF5500]"
+                              : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                             }
                           `}
                         >
@@ -452,7 +398,7 @@ export default function Sneakers() {
                 {/* BRAND */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500]"></span>
                     Brand
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -465,8 +411,8 @@ export default function Sneakers() {
                           className={`
                             px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
                             ${isActive
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                              ? "bg-gray-900 dark:bg-[#FF5500] text-white border-gray-900 dark:border-[#FF5500]"
+                              : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                             }
                           `}
                         >
@@ -479,7 +425,7 @@ export default function Sneakers() {
               </div>
 
               {/* Divider */}
-              <div className="h-px w-full bg-gray-100"></div>
+              <div className="h-px w-full bg-gray-100 dark:bg-gray-800"></div>
 
               {/* ROW 2: Price Range & Sort side by side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -487,20 +433,20 @@ export default function Sneakers() {
                 {/* PRICE RANGE */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500]"></span>
                     Price Range
                   </h3>
 
                   {/* Price Labels */}
-                  <div className="flex justify-between mb-3 text-sm font-bold text-gray-900">
+                  <div className="flex justify-between mb-3 text-sm font-bold text-gray-900 dark:text-white">
                     <span>Rp {formatPriceLabel(priceRange[0])}</span>
                     <span>Rp {formatPriceLabel(priceRange[1])}</span>
                   </div>
 
                   {/* Slider Track */}
-                  <div className="relative h-2 bg-gray-200 rounded-full mb-4">
+                  <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-4">
                     <div
-                      className="absolute h-full bg-gray-900 rounded-full"
+                      className="absolute h-full bg-gray-900 dark:bg-[#FF5500] rounded-full"
                       style={{
                         left: `${(priceRange[0] / maxPrice) * 100}%`,
                         right: `${100 - (priceRange[1] / maxPrice) * 100}%`
@@ -516,7 +462,7 @@ export default function Sneakers() {
                         const value = Math.min(Number(e.target.value), priceRange[1] - 100000);
                         handlePriceChange([value, priceRange[1]]);
                       }}
-                      className="absolute w-full h-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+                      className={`absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none ${priceRange[0] > maxPrice - 500000 ? "z-30" : "z-20"} [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-gray-900 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer`}
                     />
                     <input
                       type="range"
@@ -528,7 +474,7 @@ export default function Sneakers() {
                         const value = Math.max(Number(e.target.value), priceRange[0] + 100000);
                         handlePriceChange([priceRange[0], value]);
                       }}
-                      className="absolute w-full h-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+                      className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-gray-900 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
                     />
                   </div>
 
@@ -545,8 +491,8 @@ export default function Sneakers() {
                         key={item.label}
                         onClick={() => handlePriceChange(item.range)}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${priceRange[0] === item.range[0] && priceRange[1] === item.range[1]
-                          ? "bg-gray-900 text-white border-gray-900"
-                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                          ? "bg-gray-900 dark:bg-[#FF5500] text-white border-gray-900 dark:border-[#FF5500]"
+                          : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                           }`}
                       >
                         {item.label}
@@ -558,7 +504,7 @@ export default function Sneakers() {
                 {/* SORT BY */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500]"></span>
                     Sort By
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -571,8 +517,8 @@ export default function Sneakers() {
                           className={`
                             px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border
                             ${isActive
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                              ? "bg-gray-900 dark:bg-[#FF5500] text-white border-gray-900 dark:border-[#FF5500]"
+                              : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                             }
                           `}
                         >
@@ -593,14 +539,14 @@ export default function Sneakers() {
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-3"
+                className="bg-white dark:bg-gray-900 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-3"
               >
-                <div className="w-full h-[180px] bg-gray-200 rounded-2xl animate-pulse"></div>
-                <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-full h-[180px] bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+                <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
+                <div className="w-1/2 h-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
                 <div className="flex justify-between items-center mt-4">
-                  <div className="w-1/3 h-5 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+                  <div className="w-1/3 h-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
+                  <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse"></div>
                 </div>
               </div>
             ))}
@@ -608,12 +554,13 @@ export default function Sneakers() {
         ) : currentItems.length > 0 ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-32">
-              {currentItems.map((item) => (
+              {currentItems.map((item, index) => (
                 <ProductCard
                   key={item.id}
                   item={item}
-                  navigate={navigate}
+                  index={index}
                   reviews={reviews}
+                  productType="sneakers"
                 />
               ))}
             </div>
@@ -625,7 +572,7 @@ export default function Sneakers() {
             />
           </>
         ) : (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
+          <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
             {" "}
             <p className="text-xl font-bold text-gray-400">
               No sneakers found for "{activeCategory}"

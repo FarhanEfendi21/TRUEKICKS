@@ -1,12 +1,25 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactLenis } from "lenis/react";
 import { CartProvider } from "./Context/CartContext.jsx";
 import { WishlistProvider } from "./Context/WishlistContext.jsx";
 import { ThemeProvider } from "./Context/ThemeContext.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import Layout from "./components/Layout.jsx";
 import axios from "axios";
+import { Toaster } from "react-hot-toast";
+
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const LENIS_OPTIONS = {
+  lerp: prefersReducedMotion ? 1 : 0.1,
+  smoothWheel: !prefersReducedMotion,
+  anchors: true,
+  autoRaf: true,
+};
 
 // === GLOBAL AXIOS CONFIG FOR HTTPONLY COOKIES ===
 axios.defaults.withCredentials = true;
@@ -42,10 +55,10 @@ const queryClient = new QueryClient({
 // === LOADING FALLBACK COMPONENT ===
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-[#FF5500] rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 text-sm font-medium">Loading...</p>
+        <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-[#FF5500] rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading...</p>
       </div>
     </div>
   );
@@ -95,45 +108,60 @@ function App() {
   }, [isOffline]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <BrowserRouter>
-              <ScrollToTop />
-              {isOffline && (
-                <div className="bg-red-500 text-white text-xs font-bold text-center py-1 fixed top-0 w-full z-[100]">
-                  OFFLINE MODE - GUEST ACCESS
-                </div>
-              )}
+    <ReactLenis root options={LENIS_OPTIONS}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <BrowserRouter>
+                <ScrollToTop />
+                <Toaster
+                  position="top-center"
+                  reverseOrder={false}
+                  toastOptions={{
+                    duration: 3000,
+                    style: {
+                      borderRadius: "12px",
+                      background: "#1F2937",
+                      color: "#fff",
+                      fontSize: "14px",
+                    },
+                  }}
+                />
+                {isOffline && (
+                  <div className="bg-red-500 text-white text-xs font-bold text-center py-1 fixed top-0 w-full z-[100]">
+                    OFFLINE MODE - GUEST ACCESS
+                  </div>
+                )}
 
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Splash />} />
-                  <Route path="/login" element={<Login />} />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Splash />} />
+                    <Route path="/login" element={<Login />} />
 
-                  {/* Layout membungkus semua halaman utama */}
-                  <Route element={<Layout />}>
-                    <Route path="/home" element={<Home />} />
-                    <Route path="/catalog" element={<Catalog />} />
-                    <Route path="/sneakers" element={<Sneakers />} />
-                    <Route path="/apparel" element={<Apparel />} />
-                    <Route path="/sale" element={<Sale />} />
-                    <Route path="/wishlist" element={<Wishlist />} />
-                    <Route path="/product/:type/:id" element={<ProductDetail />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/orders" element={<OrderHistory />} />
-                    <Route path="/search" element={<Search />} />
-                    <Route path="/profile" element={<Profile />} />
-                  </Route>
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </WishlistProvider>
-        </CartProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+                    {/* Layout membungkus semua halaman utama */}
+                    <Route element={<Layout />}>
+                      <Route path="/home" element={<Home />} />
+                      <Route path="/catalog" element={<Catalog />} />
+                      <Route path="/sneakers" element={<Sneakers />} />
+                      <Route path="/apparel" element={<Apparel />} />
+                      <Route path="/sale" element={<Sale />} />
+                      <Route path="/wishlist" element={<Wishlist />} />
+                      <Route path="/product/:type/:id" element={<ProductDetail />} />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/orders" element={<OrderHistory />} />
+                      <Route path="/search" element={<Search />} />
+                      <Route path="/profile" element={<Profile />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </WishlistProvider>
+          </CartProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ReactLenis>
   );
 }
 

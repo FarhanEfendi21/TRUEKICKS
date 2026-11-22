@@ -32,8 +32,8 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                 className={`
           flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
           ${currentPage === 1
-                        ? "text-gray-300 cursor-not-allowed bg-gray-50"
-                        : "text-gray-700 hover:bg-black hover:text-white bg-white border border-gray-200 shadow-sm hover:shadow-md active:scale-95"
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-900"
+                        : "text-gray-700 dark:text-gray-200 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-gray-900 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md active:scale-95"
                     }
         `}
             >
@@ -53,10 +53,10 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                         className={`
               w-10 h-10 rounded-full text-sm font-bold transition-all duration-200 flex items-center justify-center
               ${page === currentPage
-                                ? "bg-black text-white shadow-lg scale-110"
+                                ? "bg-black dark:bg-[#FF5500] text-white shadow-lg scale-110"
                                 : page === '...'
-                                    ? "text-gray-400 cursor-default"
-                                    : "text-gray-600 hover:bg-gray-100 hover:text-black"
+                                    ? "text-gray-400 dark:text-gray-500 cursor-default"
+                                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white"
                             }
             `}
                     >
@@ -72,8 +72,8 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                 className={`
           flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
           ${currentPage === totalPages
-                        ? "text-gray-300 cursor-not-allowed bg-gray-50"
-                        : "text-gray-700 hover:bg-black hover:text-white bg-white border border-gray-200 shadow-sm hover:shadow-md active:scale-95"
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-900"
+                        : "text-gray-700 dark:text-gray-200 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-gray-900 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md active:scale-95"
                     }
         `}
             >

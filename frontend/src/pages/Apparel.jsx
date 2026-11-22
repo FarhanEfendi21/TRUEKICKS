@@ -1,12 +1,11 @@
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ApparelBanner from "../components/ApparelBanner";
 import Pagination from "../components/Pagination";
 import ProductCard from "../components/ProductCard";
-import { supabase } from "../lib/supabaseClient";
 
  
 
@@ -24,8 +23,6 @@ export default function Apparel() {
   // --- BARU: State untuk menyembunyikan/menampilkan filter ---
   const [showFilters, setShowFilters] = useState(false);
   const [reviews, setReviews] = useState([]);
-
-  const navigate = useNavigate();
 
   // --- STATE PAGINATION ---
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,11 +54,7 @@ export default function Apparel() {
   useEffect(() => {
     const fetchApparel = async () => {
       try {
-        // 1. Ambil URL dasar dari Environment Variable
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
-        // 2. Gunakan URL tersebut untuk memanggil endpoint apparel
-        const response = await axios.get(`${API_URL}/api/apparel`);
+        const response = await api.get("/api/apparel");
 
         setProducts(response.data);
         setFilteredProducts(response.data);
@@ -78,8 +71,7 @@ export default function Apparel() {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-        const response = await axios.get(`${API_URL}/api/all-reviews`);
+        const response = await api.get("/api/all-reviews");
         setReviews(response.data || []);
       } catch (error) {
         console.error("Failed to fetch reviews:", error);
@@ -128,8 +120,12 @@ export default function Apparel() {
         break;
       case "reviewed":
         result = [...result].sort((a, b) => {
-          const aReviews = reviews.filter(r => String(r.product_id) === String(a.id)).length;
-          const bReviews = reviews.filter(r => String(r.product_id) === String(b.id)).length;
+          const aReviews = reviews.filter(
+            (r) => String(r.product_id) === String(a.id) && r.product_type === "apparel"
+          ).length;
+          const bReviews = reviews.filter(
+            (r) => String(r.product_id) === String(b.id) && r.product_type === "apparel"
+          ).length;
           return bReviews - aReviews;
         });
         break;
@@ -193,7 +189,7 @@ export default function Apparel() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-poppins transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-poppins transition-colors duration-300">
       <Navbar />
 
       <div className="pt-32 pb-20 max-w-7xl mx-auto px-6">
@@ -206,12 +202,12 @@ export default function Apparel() {
           <div className="flex items-center justify-between mb-2 lg:mb-4 px-1">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="group flex items-center gap-3 text-gray-900 hover:text-orange-600 transition-colors"
+              className="group flex items-center gap-3 text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
             >
               <div
                 className={`p-2 rounded-full transition-colors ${showFilters
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-black dark:bg-[#FF5500] text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   }`}
               >
                 {/* Icon Filter Lines */}
@@ -261,10 +257,10 @@ export default function Apparel() {
             className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
               }`}
           >
-            <div className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-100/50">
+            <div className="bg-white dark:bg-gray-900 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-100/50 dark:shadow-none">
               {/* Header Kategori */}
               <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-2 md:mb-4 flex items-center gap-2 pl-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-black dark:bg-[#FF5500]"></span>
                 Category
               </h3>
               <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap gap-2.5 pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x">
@@ -279,9 +275,9 @@ export default function Apparel() {
                                         px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border whitespace-nowrap
                                         ${isActive
                           ? /* Active: Solid Black (Sesuai tema Category) */
-                          "bg-black text-white border-black shadow-lg shadow-black/20 transform scale-105"
+                          "bg-black dark:bg-[#FF5500] text-white border-black dark:border-[#FF5500] shadow-lg shadow-black/20 transform scale-105"
                           : /* Inactive: Clean White */
-                          "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                          "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                         }
                                     `}
                     >
@@ -292,39 +288,29 @@ export default function Apparel() {
               </div>
 
               {/* PRICE RANGE & SORT BY - Row Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-100">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                 {/* PRICE RANGE */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-black dark:bg-[#FF5500]"></span>
                     Price Range
                   </h3>
 
                   {/* Price Labels */}
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-bold text-gray-900">Rp {formatPriceLabel(priceRange[0])}</span>
-                    <span className="text-sm font-bold text-gray-900">Rp {formatPriceLabel(priceRange[1])}</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">Rp {formatPriceLabel(priceRange[0])}</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">Rp {formatPriceLabel(priceRange[1])}</span>
                   </div>
 
                   {/* Dual Range Slider */}
                   <div className="relative h-2 mb-4">
-                    <div className="absolute w-full h-full bg-gray-200 rounded-full"></div>
+                    <div className="absolute w-full h-full bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                     <div
-                      className="absolute h-full bg-gradient-to-r from-gray-800 to-black rounded-full"
+                      className="absolute h-full bg-gradient-to-r from-gray-800 to-black dark:from-[#FF5500] dark:to-orange-500 rounded-full"
                       style={{
                         left: `${(priceRange[0] / maxPrice) * 100}%`,
                         right: `${100 - (priceRange[1] / maxPrice) * 100}%`,
                       }}
-                    ></div>
-                    {/* Left Thumb */}
-                    <div
-                      className="absolute w-4 h-4 bg-white border-2 border-gray-800 rounded-full shadow-md -translate-y-1/4 cursor-pointer"
-                      style={{ left: `calc(${(priceRange[0] / maxPrice) * 100}% - 8px)` }}
-                    ></div>
-                    {/* Right Thumb */}
-                    <div
-                      className="absolute w-4 h-4 bg-white border-2 border-gray-800 rounded-full shadow-md -translate-y-1/4 cursor-pointer"
-                      style={{ left: `calc(${(priceRange[1] / maxPrice) * 100}% - 8px)` }}
                     ></div>
                     <input
                       type="range"
@@ -336,7 +322,7 @@ export default function Apparel() {
                         const value = Math.min(Number(e.target.value), priceRange[1] - 50000);
                         handlePriceChange([value, priceRange[1]]);
                       }}
-                      className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                      className={`absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none ${priceRange[0] > maxPrice - 500000 ? "z-30" : "z-20"} [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-800 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-gray-800 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer`}
                     />
                     <input
                       type="range"
@@ -348,7 +334,7 @@ export default function Apparel() {
                         const value = Math.max(Number(e.target.value), priceRange[0] + 50000);
                         handlePriceChange([priceRange[0], value]);
                       }}
-                      className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                      className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-800 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-gray-800 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
                     />
                   </div>
 
@@ -365,8 +351,8 @@ export default function Apparel() {
                         key={preset.label}
                         onClick={() => handlePriceChange(preset.range)}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${priceRange[0] === preset.range[0] && priceRange[1] === preset.range[1]
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                          ? "bg-black dark:bg-[#FF5500] text-white border-black dark:border-[#FF5500]"
+                          : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                           }`}
                       >
                         {preset.label}
@@ -378,7 +364,7 @@ export default function Apparel() {
                 {/* SORT BY */}
                 <div>
                   <h3 className="font-bold text-[10px] md:text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-black dark:bg-[#FF5500]"></span>
                     Sort By
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -387,8 +373,8 @@ export default function Apparel() {
                         key={option.value}
                         onClick={() => handleSortChange(option.value)}
                         className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${sortOption === option.value
-                          ? "bg-black text-white border-black shadow-lg shadow-black/20"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                          ? "bg-black dark:bg-[#FF5500] text-white border-black dark:border-[#FF5500] shadow-lg shadow-black/20"
+                          : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                           }`}
                       >
                         {option.label}
@@ -407,17 +393,17 @@ export default function Apparel() {
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-3"
+                className="bg-white dark:bg-gray-900 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-3"
               >
-                <div className="w-full h-[220px] bg-gray-200 rounded-2xl animate-pulse"></div>
-                <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-full h-[220px] bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+                <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
                 <div className="flex items-center gap-1 mt-1">
-                   <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse"></div>
-                   <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                   <div className="w-4 h-4 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse"></div>
+                   <div className="w-8 h-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
                 </div>
                 <div className="flex justify-between items-center mt-4">
-                   <div className="w-1/3 h-5 bg-gray-200 rounded animate-pulse"></div>
-                   <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+                   <div className="w-1/3 h-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
+                   <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse"></div>
                 </div>
               </div>
             ))}
@@ -444,7 +430,7 @@ export default function Apparel() {
             />
           </>
         ) : (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
+          <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
             <p className="text-xl font-bold text-gray-400">
               No apparel found for "{activeCategory}"
             </p>

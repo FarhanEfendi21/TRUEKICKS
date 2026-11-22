@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import SlideCommit from "../components/SlideCommit";
 import { useCart } from "../Context/CartContext";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 export default function Checkout() {
   const { cartItems, totalPrice, finalPrice, discount, clearCart } = useCart();
@@ -19,7 +20,37 @@ export default function Checkout() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const [slideError, setSlideError] = useState("Order failed");
+  const [desktopWidth, setDesktopWidth] = useState(320);
+  const [mobileWidth, setMobileWidth] = useState(320);
+
+  const desktopSlotRef = useRef(null);
+  const mobileSlotRef = useRef(null);
+  const orderCompletedRef = useRef(false);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => {
+    const observe = (el, setter) => {
+      if (!el) return null;
+      const update = () => {
+        const w = Math.floor(el.getBoundingClientRect().width);
+        if (w > 0) setter(Math.max(220, w));
+      };
+      update();
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return ro;
+    };
+
+    const roDesktop = observe(desktopSlotRef.current, setDesktopWidth);
+    const roMobile = observe(mobileSlotRef.current, setMobileWidth);
+
+    return () => {
+      roDesktop?.disconnect();
+      roMobile?.disconnect();
+      clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
 
   // Helper: Format Harga
   const formatPrice = (price) => {
@@ -33,17 +64,22 @@ export default function Checkout() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isGuestUser =
+      !parsedUser ||
+      !parsedUser.id ||
+      (parsedUser.email && parsedUser.email.includes("guest"));
+
+    if (isGuestUser) {
       toast.error("Please login to checkout");
 
       // === PERBAIKAN: TAMBAHKAN { replace: true } ===
       // Agar kalau user tekan Back, dia tidak kembali ke halaman Checkout yang kosong/error
       navigate("/login", { replace: true });
+      return;
     }
 
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !orderCompletedRef.current) {
       navigate("/cart", { replace: true }); // Ini juga bagus pakai replace
     }
   }, [cartItems, navigate]);
@@ -52,65 +88,71 @@ export default function Checkout() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const handlePlaceOrder = async () => {
     if (
-      !formData.fullName ||
-      !formData.address ||
-      !formData.phone ||
-      !formData.city ||
-      !formData.postalCode
+      !formData.fullName.trim() ||
+      !formData.address.trim() ||
+      !formData.phone.trim() ||
+      !formData.city.trim() ||
+      !formData.postalCode.trim()
     ) {
+      setSlideError("Complete shipping form");
       toast.error("Please fill in all required fields.");
-      setLoading(false);
-      return;
+      throw new Error("Missing required fields");
     }
 
+    setLoading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const payload = {
-        user_id: user.id,
-        full_name: formData.fullName,
-        address: formData.address,
-        city: formData.city,
-        postal_code: formData.postalCode,
-        phone: formData.phone,
-        total_price: finalPrice, // Use discounted price
-        items: cartItems,
+        full_name: formData.fullName.trim(),
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        postal_code: formData.postalCode.trim(),
+        phone: formData.phone.trim(),
+        coupon_code: discount?.code || undefined,
+        items: cartItems.map((item) => ({
+          id: item.id,
+          productType: item.productType,
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+        })),
       };
 
-      const response = await axios.post(`${API_URL}/api/orders`, payload);
+      const response = await api.post("/api/orders", payload);
 
       if (response.status === 201) {
-        clearCart();
-        toast.success("Order Placed Successfully! 🎉");
-        setTimeout(() => {
-          navigate("/profile");
-        }, 2000);
+        orderCompletedRef.current = true;
+        return response.data;
       }
+
+      throw new Error("Unexpected server response");
     } catch (error) {
       console.error("Checkout Error:", error);
       const errorMessage =
         error.response?.data?.error ||
+        error.response?.data?.errors?.[0] ||
+        error.response?.data?.message ||
         "Failed to place order. Please try again.";
+      setSlideError("Order failed");
       toast.error(errorMessage);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOrderDone = () => {
+    toast.success("Order Placed Successfully!");
+    redirectTimerRef.current = setTimeout(() => {
+      clearCart();
+      navigate("/profile", { replace: true });
+    }, 1500);
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-900 font-poppins transition-colors duration-300">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-950 font-poppins transition-colors duration-300">
       <Navbar />
-      <Toaster
-        position="bottom-center"
-        toastOptions={{
-          duration: 3000,
-          style: { background: "#333", color: "#fff" },
-        }}
-      />
 
       <main className="pt-28 pb-40 md:pt-36 md:pb-20 max-w-6xl mx-auto px-4 md:px-8">
         {/* Header */}
@@ -120,7 +162,7 @@ export default function Checkout() {
             {/* Back Button (Mobile Only) */}
             <button
               onClick={() => navigate(-1)}
-              className="md:hidden w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-900 active:scale-95 transition-all"
+              className="md:hidden w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm text-gray-900 dark:text-white active:scale-95 transition-all"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -139,13 +181,13 @@ export default function Checkout() {
             </button>
 
             <div className="text-left flex-1">
-              <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight uppercase">
+              <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
                 Checkout
               </h1>
             </div>
           </div>
 
-          <p className="text-gray-500 text-sm mt-1 text-left md:text-left ml-14 md:ml-0">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 text-left md:text-left ml-14 md:ml-0">
             Please provide your delivery details to complete the order.
           </p>
         </div>
@@ -154,9 +196,9 @@ export default function Checkout() {
           {/* === KIRI: FORMULIR PENGIRIMAN === */}
           {/* Mobile: Order 1 (First), Desktop: Order 1 (Left) */}
           <div className="lg:col-span-7 order-1">
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100">
-              <h2 className="font-bold text-xl mb-6 flex items-center gap-3 pb-4 border-b border-gray-100">
-                <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm">
+            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800">
+              <h2 className="font-bold text-xl text-gray-900 dark:text-white mb-6 flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <span className="w-8 h-8 bg-black dark:bg-[#FF5500] text-white rounded-full flex items-center justify-center text-sm">
                   1
                 </span>
                 Shipping Information
@@ -164,13 +206,13 @@ export default function Checkout() {
 
               <form
                 id="checkout-form"
-                onSubmit={handlePayment}
+                onSubmit={(e) => e.preventDefault()}
                 className="space-y-5 md:space-y-6"
               >
                 {/* Full Name & Phone */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 ml-1">
                       Full Name
                     </label>
                     <div className="relative">
@@ -196,12 +238,12 @@ export default function Checkout() {
                         onChange={handleChange}
                         type="text"
                         placeholder="e.g. John Doe"
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black focus:bg-white transition-all"
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all"
                       />
                     </div>
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 ml-1">
                       Phone Number
                     </label>
                     <div className="relative">
@@ -227,7 +269,7 @@ export default function Checkout() {
                         onChange={handleChange}
                         type="tel"
                         placeholder="e.g. 081234567890"
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black focus:bg-white transition-all"
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all"
                       />
                     </div>
                   </div>
@@ -235,7 +277,7 @@ export default function Checkout() {
 
                 {/* Address */}
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 ml-1">
                     Full Address
                   </label>
                   <div className="relative">
@@ -266,7 +308,7 @@ export default function Checkout() {
                       onChange={handleChange}
                       rows="3"
                       placeholder="Street name, House number, etc."
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black focus:bg-white transition-all resize-none"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all resize-none"
                     ></textarea>
                   </div>
                 </div>
@@ -274,7 +316,7 @@ export default function Checkout() {
                 {/* City & Postal Code */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 ml-1">
                       City
                     </label>
                     <input
@@ -283,11 +325,11 @@ export default function Checkout() {
                       onChange={handleChange}
                       type="text"
                       placeholder="e.g. Jakarta Selatan"
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-black focus:bg-white transition-all"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all"
                     />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 ml-1">
                       Postal Code
                     </label>
                     <input
@@ -296,7 +338,7 @@ export default function Checkout() {
                       onChange={handleChange}
                       type="text"
                       placeholder="e.g. 12345"
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-black focus:bg-white transition-all"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all"
                     />
                   </div>
                 </div>
@@ -307,20 +349,20 @@ export default function Checkout() {
           {/* === KANAN: RINGKASAN PESANAN (Sticky di Desktop) === */}
           {/* Mobile: Order 2 (Second), Desktop: Order 2 (Right) */}
           <div className="lg:col-span-5 order-2">
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100 lg:sticky lg:top-32">
-              <h2 className="font-bold text-xl mb-6 flex items-center justify-between">
+            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] shadow-lg dark:shadow-none border border-gray-100 dark:border-gray-800 lg:sticky lg:top-32">
+              <h2 className="font-bold text-xl text-gray-900 dark:text-white mb-6 flex items-center justify-between">
                 Order Summary
-                <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
                   {cartItems.length} Items
                 </span>
               </h2>
 
               {/* Daftar Item (Scrollable dengan custom scrollbar) */}
-              <div className="space-y-4 mb-6 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+              <div data-lenis-prevent className="space-y-4 mb-6 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
                 {cartItems.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 group">
                     {/* Gambar Produk Kecil */}
-                    <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 group-hover:border-gray-200 transition-colors">
+                    <div className="w-16 h-16 bg-gray-50 dark:bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 group-hover:border-gray-200 transition-colors">
                       <img
                         src={item.image || item.image_url}
                         className="w-[80%] object-contain mix-blend-multiply"
@@ -329,15 +371,15 @@ export default function Checkout() {
                     </div>
                     {/* Detail Produk */}
                     <div className="flex-grow min-w-0">
-                      <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight mb-1">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight mb-1">
                         {item.name}
                       </p>
-                      <p className="text-[11px] font-medium text-gray-500 bg-gray-100 inline-block px-2 py-0.5 rounded-md">
+                      <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 inline-block px-2 py-0.5 rounded-md">
                         Size: {item.size} | Qty: {item.quantity}
                       </p>
                     </div>
                     {/* Harga Total per Item */}
-                    <p className="text-sm font-black text-gray-900 whitespace-nowrap">
+                    <p className="text-sm font-black text-gray-900 dark:text-white whitespace-nowrap">
                       {formatPrice(item.price * item.quantity)}
                     </p>
                   </div>
@@ -345,22 +387,22 @@ export default function Checkout() {
               </div>
 
               {/* Rincian Biaya */}
-              <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
-                <div className="flex justify-between text-sm font-medium text-gray-500">
+              <div className="border-t border-dashed border-gray-200 dark:border-gray-800 pt-4 space-y-3">
+                <div className="flex justify-between text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Subtotal</span>
-                  <span className="font-bold text-gray-900">
+                  <span className="font-bold text-gray-900 dark:text-white">
                     {formatPrice(totalPrice)}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm font-medium text-gray-500">
+                <div className="flex justify-between text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Shipping</span>
-                  <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
+                  <span className="text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/50 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
                     Free Shipping
                   </span>
                 </div>
                 {/* Display Discount if applied */}
                 {discount.type && (
-                  <div className="flex justify-between text-sm font-medium text-green-600">
+                  <div className="flex justify-between text-sm font-medium text-green-600 dark:text-green-400">
                     <span>Discount ({discount.code})</span>
                     <span className="font-bold">
                       -{formatPrice(totalPrice - finalPrice)}
@@ -368,7 +410,7 @@ export default function Checkout() {
                   </div>
                 )}
                 {/* Bisa tambah Tax disini jika ada */}
-                <div className="flex justify-between items-end mt-6 pt-4 border-t border-gray-100">
+                <div className="flex justify-between items-end mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                   <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">
                     Total To Pay
                   </span>
@@ -378,32 +420,29 @@ export default function Checkout() {
                 </div>
               </div>
 
-              {/* Tombol Bayar (Hanya di Desktop) */}
-              <button
-                form="checkout-form"
-                type="submit"
-                disabled={loading}
-                className={`hidden md:flex w-full mt-8 bg-black text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-[#FF5500] hover:shadow-orange-500/30 transition-all active:scale-95 shadow-lg justify-center items-center gap-3 group ${loading ? "opacity-70 cursor-not-allowed" : ""
-                  }`}
-              >
-                {loading ? "Processing Payment..." : "Place Order Now"}
-                {!loading && (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2.5}
-                    stroke="currentColor"
-                    className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-                    />
-                  </svg>
-                )}
-              </button>
+              {/* Tombol Bayar Slider (Hanya di Desktop) */}
+              <div ref={desktopSlotRef} className="hidden md:block w-full mt-8">
+                <SlideCommit
+                  label="Slide to place order"
+                  doneLabel="Order Placed"
+                  errorLabel={slideError}
+                  onConfirm={handlePlaceOrder}
+                  onDone={handleOrderDone}
+                  trackColor="#f3f4f6"
+                  handleColor="#111827"
+                  successColor="#10b981"
+                  dangerColor="#ef4444"
+                  width={desktopWidth}
+                  height={54}
+                  radius={27}
+                  speed={50}
+                  returnBounce={0.38}
+                  landingDip={0.024}
+                  holdMs={0}
+                  disabled={loading}
+                  className="slide-commit--glass"
+                />
+              </div>
 
               <p className="hidden md:flex mt-4 justify-center items-center gap-2 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
                 <svg
@@ -427,9 +466,9 @@ export default function Checkout() {
 
       {/* === MOBILE STICKY CHECKOUT BAR (Hanya di Mobile) === */}
       {/* UX Terbaik untuk Mobile: Total harga dan tombol bayar selalu terlihat di bawah */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md p-4 border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 pb-6">
-        <div className="flex justify-between items-center max-w-6xl mx-auto">
-          <div className="flex flex-col">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-950/85 backdrop-blur-xl p-4 border-t border-gray-200/70 dark:border-gray-800 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] z-40 pb-6">
+        <div className="flex flex-col gap-3 max-w-6xl mx-auto">
+          <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
               Total to Pay
             </span>
@@ -437,57 +476,28 @@ export default function Checkout() {
               {formatPrice(finalPrice)}
             </span>
           </div>
-          <button
-            form="checkout-form"
-            type="submit"
-            disabled={loading}
-            className={`bg-black text-white px-8 py-3 rounded-full font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-[#FF5500] active:scale-95 transition-all flex items-center gap-2 ${loading ? "opacity-70" : ""
-              }`}
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
-              <>
-                Place Order
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2.5}
-                  stroke="currentColor"
-                  className="w-4 h-4"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-                  />
-                </svg>
-              </>
-            )}
-          </button>
+          <div ref={mobileSlotRef} className="w-full">
+            <SlideCommit
+              label="Slide to place order"
+              doneLabel="Order Placed"
+              errorLabel={slideError}
+              onConfirm={handlePlaceOrder}
+              onDone={handleOrderDone}
+              trackColor="#f3f4f6"
+              handleColor="#111827"
+              successColor="#10b981"
+              dangerColor="#ef4444"
+              width={mobileWidth}
+              height={50}
+              radius={25}
+              speed={50}
+              returnBounce={0.38}
+              landingDip={0.024}
+              holdMs={0}
+              disabled={loading}
+              className="slide-commit--glass"
+            />
+          </div>
         </div>
       </div>
 

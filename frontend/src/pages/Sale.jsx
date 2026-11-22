@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Pagination from "../components/Pagination";
@@ -204,6 +204,7 @@ const SaleProductCard = ({ item, navigate }) => {
 
 export default function Sale() {
   const navigate = useNavigate();
+  const productsGridRef = useRef(null);
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,18 +214,13 @@ export default function Sale() {
   const itemsPerPage = 16;
 
   // --- STATE UNTUK ANIMASI BANNER ---
-  const [particles, setParticles] = useState([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
-        const response = await axios.get(`${API_URL}/api/sale`);
-
-        console.log("Data Sale:", response.data);
-        setProducts(response.data);
+        const response = await api.get("/api/sale");
+        setProducts(response.data || []);
       } catch (error) {
         console.error("Gagal mengambil data sale:", error);
       } finally {
@@ -232,17 +228,6 @@ export default function Sale() {
       }
     };
     fetchProducts();
-
-    // Generate floating particles untuk banner
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 8 + 4,
-      duration: Math.random() * 5 + 3,
-      delay: Math.random() * 2,
-    }));
-    setParticles(newParticles);
   }, []);
 
   // --- LOGIKA PAGINATION ---
@@ -519,7 +504,12 @@ export default function Sale() {
               className="animate-slide-in-right"
               style={{ animationDelay: "0.5s" }}
             >
-              <button className="group relative mt-2 md:mt-4 px-6 sm:px-8 md:px-12 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white font-black rounded-lg sm:rounded-xl md:rounded-2xl text-[11px] sm:text-xs md:text-sm uppercase tracking-wide sm:tracking-wider md:tracking-widest shadow-lg md:shadow-2xl shadow-purple-500/50 transition-all duration-500 hover:shadow-purple-500/80 hover:scale-105 active:scale-95 overflow-hidden border border-purple-400/30">
+              <button
+                onClick={() =>
+                  productsGridRef.current?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="group relative mt-2 md:mt-4 px-6 sm:px-8 md:px-12 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white font-black rounded-lg sm:rounded-xl md:rounded-2xl text-[11px] sm:text-xs md:text-sm uppercase tracking-wide sm:tracking-wider md:tracking-widest shadow-lg md:shadow-2xl shadow-purple-500/50 transition-all duration-500 hover:shadow-purple-500/80 hover:scale-105 active:scale-95 overflow-hidden border border-purple-400/30"
+              >
                 {/* Animated Gradient Background */}
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
@@ -564,6 +554,7 @@ export default function Sale() {
         </div>
 
         {/* === GRID PRODUK SALE === */}
+        <div ref={productsGridRef} className="scroll-mt-28">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -602,6 +593,7 @@ export default function Sale() {
             />
           </>
         )}
+        </div>
       </div>
       <Footer />
     </div>

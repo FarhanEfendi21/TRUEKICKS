@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 
 export default function SearchBar({ onClose }) {
     const [query, setQuery] = useState("");
@@ -10,8 +10,6 @@ export default function SearchBar({ onClose }) {
     const inputRef = useRef(null);
     const containerRef = useRef(null);
     const navigate = useNavigate();
-
-    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
     // Focus input when opened
     useEffect(() => {
@@ -60,8 +58,8 @@ export default function SearchBar({ onClose }) {
             setIsLoading(true);
             try {
                 const [sneakersRes, apparelRes] = await Promise.all([
-                    axios.get(`${API_URL}/api/sneakers`),
-                    axios.get(`${API_URL}/api/apparel`),
+                    api.get("/api/sneakers"),
+                    api.get("/api/apparel"),
                 ]);
 
                 const lowerQuery = query.toLowerCase();
@@ -87,7 +85,7 @@ export default function SearchBar({ onClose }) {
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [query, API_URL]);
+    }, [query]);
 
     // Navigate to Sneakers page with keyword
     const handleSearch = (e) => {

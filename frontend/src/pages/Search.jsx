@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -12,8 +12,6 @@ export default function Search() {
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all");
-
-    const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -27,9 +25,9 @@ export default function Search() {
             setIsLoading(true);
             try {
                 const [sneakersRes, apparelRes, saleRes] = await Promise.all([
-                    axios.get(`${API_URL}/api/sneakers`),
-                    axios.get(`${API_URL}/api/apparel`),
-                    axios.get(`${API_URL}/api/sale`),
+                    api.get("/api/sneakers"),
+                    api.get("/api/apparel"),
+                    api.get("/api/sale"),
                 ]);
 
                 const lowerKeyword = keyword.toLowerCase();
@@ -60,7 +58,7 @@ export default function Search() {
         };
 
         fetchResults();
-    }, [keyword, API_URL]);
+    }, [keyword]);
 
     const filteredResults =
         activeFilter === "all"
@@ -78,19 +76,19 @@ export default function Search() {
     const counts = getCounts();
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-900 font-poppins">
+        <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-950 font-poppins transition-colors duration-300">
             <Navbar />
 
             <main className="pt-32 pb-20 max-w-7xl mx-auto px-4 md:px-8">
                 {/* Header */}
                 <div className="mb-10">
-                    <p className="text-sm text-gray-500 font-medium mb-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-2">
                         Search results for
                     </p>
                     <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
                         "{keyword}"
                     </h1>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                         {results.length} products found
                     </p>
                 </div>
@@ -107,15 +105,15 @@ export default function Search() {
                             key={tab.key}
                             onClick={() => setActiveFilter(tab.key)}
                             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeFilter === tab.key
-                                ? "bg-gray-900 text-white"
-                                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                                ? "bg-gray-900 dark:bg-[#FF5500] text-white"
+                                : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
                                 }`}
                         >
                             {tab.label}
                             <span
                                 className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${activeFilter === tab.key
                                     ? "bg-white/20 text-white"
-                                    : "bg-gray-100 text-gray-500"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                                     }`}
                             >
                                 {counts[tab.key]}
@@ -130,11 +128,11 @@ export default function Search() {
                         {[...Array(8)].map((_, i) => (
                             <div
                                 key={i}
-                                className="bg-white rounded-3xl p-4 animate-pulse"
+                                className="bg-white dark:bg-gray-900 rounded-3xl p-4 animate-pulse"
                             >
-                                <div className="aspect-square bg-gray-100 rounded-2xl mb-4" />
-                                <div className="h-4 bg-gray-100 rounded-full w-3/4 mb-2" />
-                                <div className="h-3 bg-gray-100 rounded-full w-1/2" />
+                                <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl mb-4" />
+                                <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-full w-3/4 mb-2" />
+                                <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full w-1/2" />
                             </div>
                         ))}
                     </div>
@@ -143,14 +141,14 @@ export default function Search() {
                 {/* Empty State */}
                 {!isLoading && filteredResults.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                        <div className="w-24 h-24 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center mb-6">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 strokeWidth={1.5}
                                 stroke="currentColor"
-                                className="w-12 h-12 text-gray-300"
+                                className="w-12 h-12 text-gray-300 dark:text-gray-600"
                             >
                                 <path
                                     strokeLinecap="round"
@@ -159,17 +157,17 @@ export default function Search() {
                                 />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                             No products found
                         </h2>
-                        <p className="text-gray-500 mb-6 max-w-md">
+                        <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
                             We couldn't find any products matching "{keyword}". Try searching
                             for something else or browse our collections.
                         </p>
                         <button
                             onClick={() => navigate("/sneakers")}
-                            className="px-6 py-3 bg-gray-900 text-white rounded-full font-semibold 
-                         hover:bg-gray-800 transition-colors"
+                            className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full font-semibold 
+                         hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                         >
                             Browse All Products
                         </button>
@@ -185,9 +183,9 @@ export default function Search() {
                                 onClick={() =>
                                     navigate(`/product/${item.productType}/${item.id}`)
                                 }
-                                className="group bg-white dark:bg-gray-800 rounded-3xl p-4 cursor-pointer 
-                           hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 
-                           border border-transparent hover:border-gray-100"
+                                className="group bg-white dark:bg-gray-900 rounded-3xl p-4 cursor-pointer 
+                           hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 transition-all duration-300 
+                           border border-transparent dark:border-gray-800 hover:border-gray-100 dark:hover:border-gray-700"
                             >
                                 {/* Product Type Badge */}
                                 <div className="flex justify-between items-center mb-2">
@@ -207,7 +205,7 @@ export default function Search() {
 
                                 {/* Product Image */}
                                 <div
-                                    className="aspect-square bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center 
+                                    className="aspect-square bg-gray-50 dark:bg-gray-100 rounded-2xl flex items-center 
                               justify-center p-4 mb-4 overflow-hidden"
                                 >
                                     <img
@@ -226,7 +224,14 @@ export default function Search() {
                                     {item.name}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                                    Rp {(item.price / 1000).toLocaleString()}K
+                                    Rp{" "}
+                                    {(
+                                        (item.productType === "sale_products" &&
+                                        item.discount_price != null
+                                            ? Number(item.discount_price)
+                                            : Number(item.price)) / 1000
+                                    ).toLocaleString()}
+                                    K
                                 </p>
                             </div>
                         ))}

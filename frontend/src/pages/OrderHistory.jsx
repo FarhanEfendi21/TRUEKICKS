@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Skeleton from "../components/Skeleton";
@@ -19,8 +19,7 @@ export default function OrderHistory() {
             }
 
             try {
-                const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-                const response = await axios.get(`${API_URL}/api/orders/user/${user.id}`);
+                const response = await api.get(`/api/orders/user/${user.id}`);
                 setOrders(response.data);
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
@@ -48,10 +47,10 @@ export default function OrderHistory() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 font-poppins">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-poppins transition-colors duration-300">
             <Navbar />
             <div className="pt-32 pb-20 max-w-5xl mx-auto px-4 md:px-6">
-                <h1 className="text-3xl font-black mb-8">Order History</h1>
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-8">Order History</h1>
 
                 {loading ? (
                     <div className="space-y-4">
@@ -60,13 +59,13 @@ export default function OrderHistory() {
                         ))}
                     </div>
                 ) : orders.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
+                    <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
                         <p className="text-xl font-bold text-gray-400 mb-4">
                             No orders found
                         </p>
                         <button
                             onClick={() => navigate("/sneakers")}
-                            className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors"
+                            className="bg-black dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                         >
                             Start Shopping
                         </button>
@@ -76,14 +75,14 @@ export default function OrderHistory() {
                         {orders.map((order) => (
                             <div
                                 key={order.id}
-                                className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                                className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
                             >
                                 <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
                                     <div>
                                         <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">
                                             Order ID: #{order.id}
                                         </p>
-                                        <p className="text-sm font-medium text-gray-500">
+                                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                                             {new Date(order.created_at).toLocaleDateString("id-ID", {
                                                 weekday: "long",
                                                 year: "numeric",
@@ -100,7 +99,7 @@ export default function OrderHistory() {
                                         >
                                             {order.status}
                                         </span>
-                                        <p className="font-black text-xl">
+                                        <p className="font-black text-xl text-gray-900 dark:text-white">
                                             Rp {(order.total_price / 1000).toLocaleString()}K
                                         </p>
                                     </div>
@@ -112,9 +111,9 @@ export default function OrderHistory() {
                                         order.items.map((item, index) => (
                                             <div
                                                 key={index}
-                                                className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl"
+                                                className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800/80 p-3 rounded-xl"
                                             >
-                                                <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-gray-200 overflow-hidden">
+                                                <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700 overflow-hidden">
                                                     <img
                                                         src={item.image}
                                                         alt={item.name}
@@ -122,14 +121,14 @@ export default function OrderHistory() {
                                                     />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-sm text-gray-900 line-clamp-1">
+                                                    <h4 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1">
                                                         {item.name}
                                                     </h4>
-                                                    <p className="text-xs text-gray-500">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                                         Size: {item.size} | Qty: {item.quantity}
                                                     </p>
                                                 </div>
-                                                <p className="font-bold text-sm">
+                                                <p className="font-bold text-sm text-gray-900 dark:text-white">
                                                     Rp {(item.price / 1000).toLocaleString()}K
                                                 </p>
                                             </div>

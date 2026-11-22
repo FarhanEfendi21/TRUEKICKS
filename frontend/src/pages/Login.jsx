@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import api from "../lib/api";
+import toast from "react-hot-toast";
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
 
@@ -78,9 +78,15 @@ export default function Login() {
     const normalizedEmail = email.trim().toLowerCase();
 
     // VALIDATION
-    if (activeTab === "signup" && !fullName.trim()) {
-      toast.error("Full Name is required");
-      return;
+    if (activeTab === "signup") {
+      if (!fullName.trim()) {
+        toast.error("Full Name is required");
+        return;
+      }
+      if (fullName.trim().length < 2 || fullName.trim().length > 100) {
+        toast.error("Name must be between 2-100 characters");
+        return;
+      }
     }
 
     if (!validateEmail(normalizedEmail)) {
@@ -93,6 +99,11 @@ export default function Login() {
       return;
     }
 
+    if (activeTab === "signup" && !/\d/.test(password)) {
+      toast.error("Password must contain at least one number");
+      return;
+    }
+
     // Confirm password validation for signup
     if (activeTab === "signup" && password !== confirmPassword) {
       toast.error("Passwords do not match");
@@ -102,11 +113,9 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
       if (activeTab === "signup") {
         // --- LOGIC REGISTER ---
-        await axios.post(`${API_URL}/api/register`, {
+        await api.post("/api/register", {
           full_name: fullName.trim(),
           email: normalizedEmail,
           password: password,
@@ -122,7 +131,7 @@ export default function Login() {
         setEmail(normalizedEmail); // Keep email for convenience
       } else {
         // --- LOGIC LOGIN ---
-        const response = await axios.post(`${API_URL}/api/login`, {
+        const response = await api.post("/api/login", {
           email: normalizedEmail,
           password: password,
         });
@@ -148,7 +157,11 @@ export default function Login() {
     } catch (error) {
       console.error("Auth Error:", error);
       if (error.response) {
-        const errDataMsg = error.response.data.message || "Authentication failed";
+        const backendErrors = error.response.data?.errors;
+        const errDataMsg =
+          (Array.isArray(backendErrors) && backendErrors.length > 0
+            ? backendErrors.join(". ")
+            : error.response.data?.message) || "Authentication failed";
         // Check if the error message is raw HTML (like Cloudflare 521 error when Supabase is down)
         if (typeof errDataMsg === 'string' && (errDataMsg.includes("<!DOCTYPE html>") || errDataMsg.includes("521: Web server is down"))) {
           toast.error("Database (Supabase) is unavailable or paused. Please restore it in your dashboard.");
@@ -196,6 +209,9 @@ export default function Login() {
     if (!touched.password) return null;
     if (!password) return "Password is required";
     if (password.length < 6) return "At least 6 characters required";
+    if (activeTab === "signup" && !/\d/.test(password)) {
+      return "Must contain at least one number";
+    }
     return null;
   };
 
@@ -211,13 +227,12 @@ export default function Login() {
   const confirmPasswordError = getConfirmPasswordError();
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-poppins bg-[#FAFAFA] px-4">
-      <Toaster position="top-center" reverseOrder={false} />
+    <div className="min-h-screen flex items-center justify-center font-poppins bg-[#FAFAFA] dark:bg-gray-950 px-4 transition-colors duration-300">
 
       <div className="w-full max-w-[420px]">
         {/* LOGO */}
         <div className="mb-8 text-center">
-          <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 select-none">
+          <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 dark:text-white select-none">
             TRUE<span className="text-[#FF5500]">KICKS</span>
           </h1>
           <p className="text-gray-400 text-sm mt-2 font-medium tracking-wide">
@@ -226,32 +241,32 @@ export default function Login() {
         </div>
 
         {/* CARD CONTAINER */}
-        <div className="w-full bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
+        <div className="w-full bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-gray-100 dark:border-gray-800">
           {/* TAB SWITCHER */}
           <div className="flex mb-6 relative">
-            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gray-200"></div>
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gray-200 dark:bg-gray-800"></div>
             <button
               onClick={() => handleTabSwitch("signup")}
               className={`w-1/2 pb-3 text-base font-bold transition-all relative ${activeTab === "signup"
-                ? "text-gray-900"
-                : "text-gray-400 hover:text-gray-600"
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
             >
               Sign Up
               {activeTab === "signup" && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black dark:bg-[#FF5500] rounded-full"></div>
               )}
             </button>
             <button
               onClick={() => handleTabSwitch("login")}
               className={`w-1/2 pb-3 text-base font-bold transition-all relative ${activeTab === "login"
-                ? "text-gray-900"
-                : "text-gray-400 hover:text-gray-600"
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
             >
               Log In
               {activeTab === "login" && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black dark:bg-[#FF5500] rounded-full"></div>
               )}
             </button>
           </div>
@@ -261,14 +276,14 @@ export default function Login() {
             {/* Input Nama (Sign Up Only) */}
             {activeTab === "signup" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
                   Full Name
                 </label>
                 <input
                   type="text"
                   required
                   placeholder="Enter your full name"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-black focus:bg-white transition-all text-sm font-medium"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   onBlur={() => setTouched({ ...touched, fullName: true })}
@@ -278,7 +293,7 @@ export default function Login() {
 
             {/* Input Email */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
                 Email Address
               </label>
               <input
@@ -286,7 +301,7 @@ export default function Login() {
                 required
                 placeholder="you@example.com"
                 autoComplete="off"
-                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none focus:bg-white transition-all text-sm font-medium ${emailError ? "border-red-400 focus:border-red-500" : "border-gray-200 focus:border-black"
+                className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border text-gray-900 dark:text-white rounded-xl outline-none focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium ${emailError ? "border-red-400 focus:border-red-500" : "border-gray-200 dark:border-gray-700 focus:border-black dark:focus:border-[#FF5500]"
                   }`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -299,16 +314,20 @@ export default function Login() {
 
             {/* Input Password */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="At least 6 characters"
+                  placeholder={
+                    activeTab === "signup"
+                      ? "Min. 6 characters & at least 1 number"
+                      : "Enter your password"
+                  }
                   autoComplete="new-password"
-                  className={`w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none focus:bg-white transition-all text-sm font-medium pr-12 ${passwordError ? "border-red-400 focus:border-red-500" : "border-gray-200 focus:border-black"
+                  className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border text-gray-900 dark:text-white rounded-xl outline-none focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium pr-12 ${passwordError ? "border-red-400 focus:border-red-500" : "border-gray-200 dark:border-gray-700 focus:border-black dark:focus:border-[#FF5500]"
                     }`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -360,7 +379,7 @@ export default function Login() {
             {/* Confirm Password (Sign Up Only) */}
             {activeTab === "signup" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -368,8 +387,8 @@ export default function Login() {
                     type={showConfirmPassword ? "text" : "password"}
                     required
                     placeholder="Re-enter your password"
-                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none focus:bg-white transition-all text-sm font-medium pr-12 ${confirmPasswordError ? "border-red-400 focus:border-red-500" :
-                      (confirmPassword && password === confirmPassword) ? "border-green-400" : "border-gray-200 focus:border-black"
+                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border text-gray-900 dark:text-white rounded-xl outline-none focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium pr-12 ${confirmPasswordError ? "border-red-400 focus:border-red-500" :
+                      (confirmPassword && password === confirmPassword) ? "border-green-400" : "border-gray-200 dark:border-gray-700 focus:border-black dark:focus:border-[#FF5500]"
                       }`}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -410,7 +429,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-black text-white py-4 rounded-xl font-bold text-sm hover:bg-gray-800 hover:shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 mt-6 shadow-lg shadow-black/20"
+              className="w-full bg-black dark:bg-[#FF5500] text-white py-4 rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-orange-600 hover:shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 mt-6 shadow-lg shadow-black/20"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -423,7 +442,7 @@ export default function Login() {
 
             {/* Text Login/Sign up switch */}
             <div className="text-center mt-4">
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {activeTab === "login"
                   ? "Don't have an account?"
                   : "Already have an account?"}{" "}
@@ -444,9 +463,9 @@ export default function Login() {
           <button
             onClick={handleGuestLogin}
             className="w-full max-w-xs mx-auto flex items-center justify-center gap-3 
-                bg-white border border-gray-300 shadow-sm 
-                hover:shadow-md hover:border-gray-400 
-                text-gray-800 font-semibold 
+                bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 shadow-sm 
+                hover:shadow-md hover:border-gray-400 dark:hover:border-gray-600 
+                text-gray-800 dark:text-gray-200 font-semibold 
                 px-5 py-3 rounded-xl 
                 transition-all duration-300 
                 hover:-translate-y-0.5 active:scale-95 group"

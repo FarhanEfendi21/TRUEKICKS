@@ -13,16 +13,16 @@ export default function Wishlist() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-poppins transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-poppins transition-colors duration-300">
       <Navbar />
 
       <div className="pt-32 pb-24 max-w-7xl mx-auto px-6">
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">MY WISHLIST</h1>
-        <p className="text-gray-500 mb-10">Save your favorite kicks for later.</p>
+        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2">MY WISHLIST</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-10">Save your favorite kicks for later.</p>
 
         {wishlistItems.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+          <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
+            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
               💔
             </div>
             <p className="text-xl font-bold text-gray-400">Your wishlist is empty</p>
@@ -34,26 +34,26 @@ export default function Wishlist() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {wishlistItems.map((item) => (
               <div
-                key={item.id}
-                className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 hover:shadow-lg transition-all relative group cursor-pointer"
-                onClick={() => navigate(`/product/sneakers/${item.id}`)}
+                key={`${item.productType || "sneakers"}-${item.id}`}
+                className="bg-white dark:bg-gray-900 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all relative group cursor-pointer"
+                onClick={() => navigate(`/product/${item.productType || "sneakers"}/${item.id}`)}
               >
                 {/* Tombol Hapus */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation(); // Mencegah masuk ke detail saat klik hapus
-                    removeFromWishlist(item.id);
+                    removeFromWishlist(item.id, item.productType);
                   }}
-                  className="absolute top-3 right-3 z-10 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-100 hover:text-red-500 transition-colors"
+                  className="absolute top-3 right-3 z-10 w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-100 dark:hover:bg-red-950/60 hover:text-red-500 transition-colors"
                 >
                   ✕
                 </button>
 
-                <div className="relative h-[160px] bg-gray-50 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
+                <div className="relative h-[160px] bg-gray-50 dark:bg-gray-100 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
                   <img src={item.image} className="w-[85%] object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500" alt={item.name} />
                 </div>
 
-                <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{item.name}</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-1">{item.name}</h3>
                 <p className="text-[#FF5500] font-bold text-sm mt-1">Rp {(item.price / 1000).toLocaleString()}K</p>
               </div>
             ))}
