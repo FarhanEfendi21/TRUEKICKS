@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useLenis } from "lenis/react";
 import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -14,6 +15,7 @@ import ProductCard from "../components/ProductCard";
 // =========================================
 export default function Apparel() {
   const location = useLocation();
+  const lenis = useLenis();
   const [searchKeyword, setSearchKeyword] = useState("");
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -185,7 +187,11 @@ export default function Apparel() {
   // Fungsi Ganti Halaman
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (lenis) {
+      lenis.scrollTo(0);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
@@ -427,6 +433,10 @@ export default function Apparel() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={paginate}
+              items={filteredProducts}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredProducts.length}
+              itemLabel="apparel"
             />
           </>
         ) : (

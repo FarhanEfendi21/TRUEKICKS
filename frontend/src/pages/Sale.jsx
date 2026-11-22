@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLenis } from "lenis/react";
 import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -204,6 +205,7 @@ const SaleProductCard = ({ item, navigate }) => {
 
 export default function Sale() {
   const navigate = useNavigate();
+  const lenis = useLenis();
   const productsGridRef = useRef(null);
 
   const [products, setProducts] = useState([]);
@@ -238,7 +240,13 @@ export default function Sale() {
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (lenis && productsGridRef.current) {
+      lenis.scrollTo(productsGridRef.current, { offset: -96 });
+    } else if (lenis) {
+      lenis.scrollTo(0);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   // Handle mouse move untuk parallax effect
@@ -590,6 +598,11 @@ export default function Sale() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={paginate}
+              items={products}
+              itemsPerPage={itemsPerPage}
+              totalItems={products.length}
+              itemLabel="sale items"
+              variant="sale"
             />
           </>
         )}

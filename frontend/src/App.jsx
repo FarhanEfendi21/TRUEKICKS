@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactLenis } from "lenis/react";
 import { CartProvider } from "./Context/CartContext.jsx";
@@ -7,8 +7,27 @@ import { WishlistProvider } from "./Context/WishlistContext.jsx";
 import { ThemeProvider } from "./Context/ThemeContext.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import Layout from "./components/Layout.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import axios from "axios";
 import { Toaster } from "react-hot-toast";
+
+const lazyWithRetry = (importer) =>
+  lazy(async () => {
+    const key = "truekicks_chunk_reloaded";
+    try {
+      const mod = await importer();
+      sessionStorage.removeItem(key);
+      return mod;
+    } catch (error) {
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      sessionStorage.removeItem(key);
+      throw error;
+    }
+  });
 
 const prefersReducedMotion =
   typeof window !== "undefined" &&
@@ -24,22 +43,22 @@ const LENIS_OPTIONS = {
 // === GLOBAL AXIOS CONFIG FOR HTTPONLY COOKIES ===
 axios.defaults.withCredentials = true;
 
-// === LAZY LOADING PAGES (Code Splitting) ===
+// === LAZY LOADING PAGES (Code Splitting with Stale-Chunk Recovery) ===
 // Halaman berat di-load hanya saat dibutuhkan
-const Splash = lazy(() => import("./pages/Splash.jsx"));
-const Login = lazy(() => import("./pages/Login.jsx"));
-const Home = lazy(() => import("./pages/Home.jsx"));
-const Catalog = lazy(() => import("./pages/Catalog.jsx"));
-const Profile = lazy(() => import("./pages/Profile.jsx"));
-const Sneakers = lazy(() => import("./pages/Sneakers.jsx"));
-const Apparel = lazy(() => import("./pages/Apparel.jsx"));
-const ProductDetail = lazy(() => import("./pages/ProductDetail.jsx"));
-const Sale = lazy(() => import("./pages/Sale.jsx"));
-const Cart = lazy(() => import("./pages/Cart.jsx"));
-const Wishlist = lazy(() => import("./pages/Wishlist.jsx"));
-const Checkout = lazy(() => import("./pages/Checkout.jsx"));
-const OrderHistory = lazy(() => import("./pages/OrderHistory.jsx"));
-const Search = lazy(() => import("./pages/Search.jsx"));
+const Splash = lazyWithRetry(() => import("./pages/Splash.jsx"));
+const Login = lazyWithRetry(() => import("./pages/Login.jsx"));
+const Home = lazyWithRetry(() => import("./pages/Home.jsx"));
+const Catalog = lazyWithRetry(() => import("./pages/Catalog.jsx"));
+const Profile = lazyWithRetry(() => import("./pages/Profile.jsx"));
+const Sneakers = lazyWithRetry(() => import("./pages/Sneakers.jsx"));
+const Apparel = lazyWithRetry(() => import("./pages/Apparel.jsx"));
+const ProductDetail = lazyWithRetry(() => import("./pages/ProductDetail.jsx"));
+const Sale = lazyWithRetry(() => import("./pages/Sale.jsx"));
+const Cart = lazyWithRetry(() => import("./pages/Cart.jsx"));
+const Wishlist = lazyWithRetry(() => import("./pages/Wishlist.jsx"));
+const Checkout = lazyWithRetry(() => import("./pages/Checkout.jsx"));
+const OrderHistory = lazyWithRetry(() => import("./pages/OrderHistory.jsx"));
+const Search = lazyWithRetry(() => import("./pages/Search.jsx"));
 
 // === REACT QUERY CLIENT ===
 const queryClient = new QueryClient({
@@ -134,28 +153,32 @@ function App() {
                   </div>
                 )}
 
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    <Route path="/" element={<Splash />} />
-                    <Route path="/login" element={<Login />} />
+                <ErrorBoundary>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<Splash />} />
+                      <Route path="/login" element={<Login />} />
 
-                    {/* Layout membungkus semua halaman utama */}
-                    <Route element={<Layout />}>
-                      <Route path="/home" element={<Home />} />
-                      <Route path="/catalog" element={<Catalog />} />
-                      <Route path="/sneakers" element={<Sneakers />} />
-                      <Route path="/apparel" element={<Apparel />} />
-                      <Route path="/sale" element={<Sale />} />
-                      <Route path="/wishlist" element={<Wishlist />} />
-                      <Route path="/product/:type/:id" element={<ProductDetail />} />
-                      <Route path="/cart" element={<Cart />} />
-                      <Route path="/checkout" element={<Checkout />} />
-                      <Route path="/orders" element={<OrderHistory />} />
-                      <Route path="/search" element={<Search />} />
-                      <Route path="/profile" element={<Profile />} />
-                    </Route>
-                  </Routes>
-                </Suspense>
+                      {/* Layout membungkus semua halaman utama */}
+                      <Route element={<Layout />}>
+                        <Route path="/home" element={<Home />} />
+                        <Route path="/catalog" element={<Catalog />} />
+                        <Route path="/sneakers" element={<Sneakers />} />
+                        <Route path="/apparel" element={<Apparel />} />
+                        <Route path="/sale" element={<Sale />} />
+                        <Route path="/wishlist" element={<Wishlist />} />
+                        <Route path="/product/:type/:id" element={<ProductDetail />} />
+                        <Route path="/cart" element={<Cart />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/orders" element={<OrderHistory />} />
+                        <Route path="/search" element={<Search />} />
+                        <Route path="/profile" element={<Profile />} />
+                      </Route>
+
+                      <Route path="*" element={<Navigate to="/home" replace />} />
+                    </Routes>
+                  </Suspense>
+                </ErrorBoundary>
               </BrowserRouter>
             </WishlistProvider>
           </CartProvider>

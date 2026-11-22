@@ -665,7 +665,7 @@ app.use((err, req, res, next) => {
 
 export default app;
 
-if (process.env.NODE_ENV !== "production") {
+if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     console.log(`Server TrueKicks berjalan di http://localhost:${PORT}`);
   });

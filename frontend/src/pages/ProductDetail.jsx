@@ -282,17 +282,19 @@ export default function ProductDetail() {
         const reviewsRes = await api.get(`/api/reviews/${id}?type=${type}`);
         setReviews(reviewsRes.data || []);
 
-        // === FETCH SIMILAR PRODUCTS ===
-        // Ambil produk dari tabel yang sama, limit 4, exclude ID saat ini
-        const { data: similarData } = await supabase
-          .from(type)
-          .select("*")
-          .neq("id", id) // Exclude current product
-          .limit(4);
-
-        // Optional: Filter by category if available (client-side or better query)
-        // For simplicity, just taking random 4 from same table
-        setSimilarProducts(similarData || []);
+        // === FETCH SIMILAR PRODUCTS VIA BACKEND API ===
+        try {
+          const listEndpoint =
+            type === "sale_products" ? "/api/sale" : `/api/${type}`;
+          const similarRes = await api.get(listEndpoint);
+          const similarList = (similarRes.data || [])
+            .filter((item) => String(item.id) !== String(id))
+            .slice(0, 4);
+          setSimilarProducts(similarList);
+        } catch (similarErr) {
+          console.error("Gagal ambil produk serupa:", similarErr);
+          setSimilarProducts([]);
+        }
 
       } catch (error) {
         console.error("Gagal ambil data:", error);
@@ -306,6 +308,8 @@ export default function ProductDetail() {
   }, [type, id]);
 
   useEffect(() => {
+    if (!supabase) return undefined;
+
     const channel = supabase
       .channel("realtime-reviews")
       .on(

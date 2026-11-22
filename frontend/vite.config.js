@@ -36,6 +36,13 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Pastikan SW baru langsung aktif & hapus cache deploy lama agar chunk lazy tidak stale
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/assets/],
+
         // Cache file statis
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 

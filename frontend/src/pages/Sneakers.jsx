@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useLenis } from "lenis/react";
 import api from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SneakersBanner from "../components/SneakersBanner";
-import { supabase } from "../lib/supabaseClient";
 import Pagination from "../components/Pagination";
 import ProductCard from "../components/ProductCard";
 
@@ -22,6 +22,7 @@ const BRAND_CATEGORIES = [
 
 export default function Sneakers() {
   const location = useLocation();
+  const lenis = useLenis();
   const [searchKeyword, setSearchKeyword] = useState(location.state?.keyword || "");
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -75,45 +76,21 @@ export default function Sneakers() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage]);
 
-  // --- USE EFFECT: FETCH KATEGORI DARI SUPABASE ---
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("sneakers")
-          .select("categories")
-          .not("categories", "is", null);
-
-        if (error) throw error;
-
-        const allTypes = data.map((item) => item.categories);
-        const uniqueTypes = ["All Types", ...new Set(allTypes)].filter(
-          (name) => name
-        );
-
-        setShoeTypes(uniqueTypes);
-      } catch (error) {
-        console.error("Gagal mengambil kategori:", error);
-        setShoeTypes([
-          "All Types",
-          "Running",
-          "Basketball",
-          "Lifestyle",
-          "Skateboarding",
-          "Training",
-          "Sandals",
-        ]);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  // --- USE EFFECT: FETCH PRODUCTS ONCE ON MOUNT ---
+  // --- USE EFFECT: FETCH PRODUCTS ONCE ON MOUNT (AND DERIVE CATEGORIES) ---
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const response = await api.get("/api/sneakers");
-        setProducts(response.data || []);
+        const items = response.data || [];
+        setProducts(items);
+
+        const uniqueTypes = [
+          "All Types",
+          ...new Set(items.map((item) => item.categories).filter(Boolean)),
+        ];
+        if (uniqueTypes.length > 1) {
+          setShoeTypes(uniqueTypes);
+        }
       } catch (error) {
         console.error("Gagal mengambil data:", error);
       } finally {
@@ -277,7 +254,11 @@ export default function Sneakers() {
   // Fungsi Ganti Halaman
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (lenis) {
+      lenis.scrollTo(0);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
@@ -553,7 +534,7 @@ export default function Sneakers() {
           </div>
         ) : currentItems.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-32">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-12 md:mb-16">
               {currentItems.map((item, index) => (
                 <ProductCard
                   key={item.id}
@@ -569,6 +550,10 @@ export default function Sneakers() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={paginate}
+              items={filteredProducts}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredProducts.length}
+              itemLabel="sneakers"
             />
           </>
         ) : (
