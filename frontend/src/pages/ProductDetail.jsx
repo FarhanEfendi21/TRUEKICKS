@@ -2,6 +2,11 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLenis } from "lenis/react";
 import api from "../lib/api";
+import {
+  hasActiveDiscount,
+  getEffectivePrice,
+  getDiscountPercentage,
+} from "../lib/pricing";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useCart } from "../Context/CartContext";
@@ -126,10 +131,9 @@ export default function ProductDetail() {
   const sizes = isApparel ? apparelSizes : shoeSizes;
   // ------------------------------------
 
-  const effectivePrice =
-    type === "sale_products" && product?.discount_price != null
-      ? Number(product.discount_price)
-      : Number(product?.price || 0);
+  const isDiscounted = hasActiveDiscount(product);
+  const effectivePrice = getEffectivePrice(product);
+  const discountPercent = getDiscountPercentage(product);
 
   // LOGIKA UTAMA
   const isLiked = product ? isInWishlist(product.id, type) : false;
@@ -515,13 +519,16 @@ export default function ProductDetail() {
                   <span className="text-3xl font-bold text-gray-900 dark:text-white">
                     Rp {(effectivePrice / 1000).toLocaleString()}K
                   </span>
-                  {type === "sale_products" &&
-                    product.discount_price != null &&
-                    Number(product.discount_price) < Number(product.price) && (
+                  {isDiscounted && (
+                    <>
                       <span className="text-base text-gray-400 line-through">
-                        Rp {(product.price / 1000).toLocaleString()}K
+                        Rp {(Number(product.price) / 1000).toLocaleString()}K
                       </span>
-                    )}
+                      <span className="px-2 py-0.5 rounded-full bg-[#FF5500]/10 text-[#FF5500] text-xs font-bold">
+                        -{discountPercent}%
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <div
@@ -865,15 +872,16 @@ export default function ProductDetail() {
                   <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 group-hover:text-[#FF5500] transition-colors">
                     {item.name}
                   </h4>
-                  <p className="text-xs text-gray-500 font-medium mt-1">
-                    Rp{" "}
-                    {(
-                      (type === "sale_products" && item.discount_price != null
-                        ? Number(item.discount_price)
-                        : Number(item.price)) / 1000
-                    ).toLocaleString()}
-                    K
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs text-gray-900 dark:text-gray-200 font-bold">
+                      Rp {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                    </p>
+                    {hasActiveDiscount(item) && (
+                      <p className="text-[11px] text-gray-400 line-through">
+                        Rp {(Number(item.price) / 1000).toLocaleString()}K
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

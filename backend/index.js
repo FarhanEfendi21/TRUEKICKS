@@ -70,20 +70,85 @@ app.use(express.json({ limit: "10mb" })); // Body parser with size limit
 app.use(cookieParser()); // Parse Cookie header
 app.use("/api", apiLimiter); // General rate limiting for all API routes (single registration)
 
-// === SERVER-SIDE HELPERS (PRICE & COUPON VERIFICATION) ===
+// === SERVER-SIDE HELPERS (PRICE, SALE SYNC & COUPON VERIFICATION) ===
+const normalizeProductName = (name) =>
+  typeof name === "string" ? name.trim().toLowerCase().replace(/\s+/g, " ") : "";
+
+const fetchActiveSaleMap = async () => {
+  const { data, error } = await supabase
+    .from("sale_products")
+    .select("id, name, price, discount_price");
+
+  if (error || !Array.isArray(data)) {
+    return new Map();
+  }
+
+  const saleMap = new Map();
+  for (const row of data) {
+    const key = normalizeProductName(row.name);
+    const originalPrice = Number(row.price);
+    const discountPrice = Number(row.discount_price);
+
+    if (
+      key &&
+      Number.isFinite(originalPrice) &&
+      Number.isFinite(discountPrice) &&
+      discountPrice > 0 &&
+      discountPrice < originalPrice
+    ) {
+      saleMap.set(key, {
+        sale_id: row.id,
+        price: originalPrice,
+        discount_price: discountPrice,
+        discount_percentage: Math.round(
+          ((originalPrice - discountPrice) / originalPrice) * 100
+        ),
+      });
+    }
+  }
+  return saleMap;
+};
+
+const applySaleOverride = (product, saleMap) => {
+  if (!product || !saleMap) return product;
+  const saleMatch = saleMap.get(normalizeProductName(product.name));
+  if (!saleMatch) return product;
+
+  return {
+    ...product,
+    price: saleMatch.price,
+    discount_price: saleMatch.discount_price,
+    is_on_sale: true,
+    sale_id: saleMatch.sale_id,
+    discount_percentage: saleMatch.discount_percentage,
+  };
+};
+
+const applySaleToList = async (items) => {
+  if (!Array.isArray(items) || items.length === 0) return items || [];
+  const saleMap = await fetchActiveSaleMap();
+  if (saleMap.size === 0) return items;
+  return items.map((item) => applySaleOverride(item, saleMap));
+};
+
 const getAuthoritativePrice = (table, product) => {
-  if (table === "sale_products" && product.discount_price != null) {
+  if (
+    product.discount_price != null &&
+    Number(product.discount_price) > 0 &&
+    Number(product.discount_price) < Number(product.price)
+  ) {
     return Number(product.discount_price);
   }
   return Number(product.price);
 };
 
-const resolveProductFromDB = async (item) => {
+const resolveProductFromDB = async (item, saleMap = null) => {
   const productId = Number(item.id);
   if (!Number.isInteger(productId) || productId <= 0) {
     return { error: `Invalid product ID: ${item.id}` };
   }
 
+  const activeSaleMap = saleMap || (await fetchActiveSaleMap());
   const requestedType = item.productType || item.product_type;
 
   if (requestedType) {
@@ -101,18 +166,22 @@ const resolveProductFromDB = async (item) => {
       return { error: `Product not found (${requestedType} #${productId}).` };
     }
 
-    const unitPrice = getAuthoritativePrice(requestedType, data);
+    const syncedData =
+      requestedType === "sale_products"
+        ? data
+        : applySaleOverride(data, activeSaleMap);
+    const unitPrice = getAuthoritativePrice(requestedType, syncedData);
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
       return { error: `Invalid product pricing for product #${productId}.` };
     }
 
     return {
       product: {
-        id: data.id,
+        id: syncedData.id,
         productType: requestedType,
-        name: data.name,
+        name: syncedData.name,
         price: unitPrice,
-        image: data.image_url,
+        image: syncedData.image_url,
       },
     };
   }
@@ -132,14 +201,16 @@ const resolveProductFromDB = async (item) => {
       .maybeSingle();
 
     if (data) {
-      const unitPrice = getAuthoritativePrice(table, data);
+      const syncedData =
+        table === "sale_products" ? data : applySaleOverride(data, activeSaleMap);
+      const unitPrice = getAuthoritativePrice(table, syncedData);
       return {
         product: {
-          id: data.id,
+          id: syncedData.id,
           productType: table,
-          name: data.name,
+          name: syncedData.name,
           price: unitPrice,
-          image: data.image_url,
+          image: syncedData.image_url,
         },
       };
     }
@@ -210,7 +281,8 @@ app.get("/api/products", async (req, res) => {
       .order("id", { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    const syncedData = await applySaleToList(data);
+    res.json(syncedData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -225,7 +297,8 @@ app.get("/api/sneakers", async (req, res) => {
       .order("id", { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    const syncedData = await applySaleToList(data);
+    res.json(syncedData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -240,7 +313,8 @@ app.get("/api/apparel", async (req, res) => {
       .order("id", { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    const syncedData = await applySaleToList(data);
+    res.json(syncedData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -410,6 +484,11 @@ app.get("/api/detail/:table/:id", async (req, res) => {
     if (!data)
       return res.status(404).json({ message: "Produk tidak ditemukan" });
 
+    if (table !== "sale_products") {
+      const saleMap = await fetchActiveSaleMap();
+      return res.json(applySaleOverride(data, saleMap));
+    }
+
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -432,6 +511,7 @@ app.post("/api/orders", authMiddleware, orderValidation, validate, async (req, r
     }
 
     // Recalculate all item prices strictly from Supabase DB (never trust client price/total_price)
+    const saleMap = await fetchActiveSaleMap();
     const verifiedItems = [];
     let subtotal = 0;
 
@@ -441,7 +521,7 @@ app.post("/api/orders", authMiddleware, orderValidation, validate, async (req, r
         return res.status(400).json({ error: "Invalid item quantity." });
       }
 
-      const resolved = await resolveProductFromDB(rawItem);
+      const resolved = await resolveProductFromDB(rawItem, saleMap);
       if (resolved.error) {
         return res.status(400).json({ error: resolved.error });
       }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useLenis } from "lenis/react";
 import api from "../lib/api";
+import { getEffectivePrice } from "../lib/pricing";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SneakersBanner from "../components/SneakersBanner";
@@ -181,18 +182,23 @@ export default function Sneakers() {
       );
     }
 
-    // 4. Filter Berdasarkan Price Range
-    result = result.filter(
-      (item) => item.price >= priceRange[0] && item.price <= priceRange[1]
-    );
+    // 4. Filter Berdasarkan Price Range (pakai harga efektif jika sedang sale)
+    result = result.filter((item) => {
+      const price = getEffectivePrice(item);
+      return price >= priceRange[0] && price <= priceRange[1];
+    });
 
     // 5. Sort
     switch (sortOption) {
       case "price-asc":
-        result = [...result].sort((a, b) => a.price - b.price);
+        result = [...result].sort(
+          (a, b) => getEffectivePrice(a) - getEffectivePrice(b)
+        );
         break;
       case "price-desc":
-        result = [...result].sort((a, b) => b.price - a.price);
+        result = [...result].sort(
+          (a, b) => getEffectivePrice(b) - getEffectivePrice(a)
+        );
         break;
       case "reviewed":
         result = [...result].sort((a, b) => {

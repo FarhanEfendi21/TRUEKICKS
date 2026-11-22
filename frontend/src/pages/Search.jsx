@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../lib/api";
+import {
+    hasActiveDiscount,
+    getEffectivePrice,
+    getDiscountPercentage,
+} from "../lib/pricing";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -201,6 +206,11 @@ export default function Search() {
                                             ? "Sale"
                                             : item.productType}
                                     </span>
+                                    {hasActiveDiscount(item) && (
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FF5500] text-white">
+                                            -{getDiscountPercentage(item)}%
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Product Image */}
@@ -223,16 +233,16 @@ export default function Search() {
                                 >
                                     {item.name}
                                 </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                                    Rp{" "}
-                                    {(
-                                        (item.productType === "sale_products" &&
-                                        item.discount_price != null
-                                            ? Number(item.discount_price)
-                                            : Number(item.price)) / 1000
-                                    ).toLocaleString()}
-                                    K
-                                </p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs font-bold text-[#FF5500]">
+                                        Rp {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                                    </p>
+                                    {hasActiveDiscount(item) && (
+                                        <p className="text-[11px] text-gray-400 line-through">
+                                            Rp {(Number(item.price) / 1000).toLocaleString()}K
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>

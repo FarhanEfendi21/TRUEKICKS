@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "motion/react";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
+import { getEffectivePrice } from "../lib/pricing";
 
 import p6000Silver from "../assets/p6000-silver.png";
 import airJordan from "../assets/airjordan.png";
@@ -77,13 +78,15 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
   const total = SHOWCASE_SNEAKERS.length;
   const activeSneaker = SHOWCASE_SNEAKERS[activeIndex];
 
-  const handleNext = useCallback(() => {
-    setActiveIndex((prev) => (prev + 1) % total);
-  }, [total]);
+  const handleNext = () => {
+    setActiveIndex((prev) => (prev + 1) % SHOWCASE_SNEAKERS.length);
+  };
 
-  const handlePrev = useCallback(() => {
-    setActiveIndex((prev) => (prev - 1 + total) % total);
-  }, [total]);
+  const handlePrev = () => {
+    setActiveIndex(
+      (prev) => (prev - 1 + SHOWCASE_SNEAKERS.length) % SHOWCASE_SNEAKERS.length
+    );
+  };
 
   // Subtle auto-slide, paused on hover/focus/drag or reduced motion
   useEffect(() => {
@@ -93,9 +96,11 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return undefined;
 
-    const timer = window.setInterval(handleNext, AUTO_PLAY_MS);
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % SHOWCASE_SNEAKERS.length);
+    }, AUTO_PLAY_MS);
     return () => window.clearInterval(timer);
-  }, [isPaused, handleNext]);
+  }, [isPaused]);
 
   const handlePointerDown = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
@@ -141,8 +146,8 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
     p.name?.toLowerCase().includes(activeSneaker.matchKeyword)
   );
 
-  const displayPrice = matchedActive?.price
-    ? `Rp ${Number(matchedActive.price).toLocaleString("id-ID")}`
+  const displayPrice = matchedActive
+    ? `Rp ${getEffectivePrice(matchedActive).toLocaleString("id-ID")}`
     : activeSneaker.price;
 
   const handleSeeMore = () => {

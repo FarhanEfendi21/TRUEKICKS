@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLenis } from "lenis/react";
 import toast from "react-hot-toast";
 import api from "../lib/api";
+import { hasActiveDiscount, getEffectivePrice } from "../lib/pricing";
 import { useWishlist } from "../Context/WishlistContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -100,7 +101,7 @@ export default function Home() {
       addToWishlist({
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: getEffectivePrice(item),
         image: item.image_url,
         productType: "products",
       });
@@ -394,9 +395,16 @@ export default function Home() {
                       <span className="text-[10px] text-gray-400 font-medium uppercase group-hover:text-orange-500 transition-colors">
                         Current Price
                       </span>
-                      <p className="text-lg md:text-xl font-black text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">
-                        {(item.price / 1000).toLocaleString()}K
-                      </p>
+                      <div className="flex items-baseline gap-1.5">
+                        <p className="text-lg md:text-xl font-black text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">
+                          {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                        </p>
+                        {hasActiveDiscount(item) && (
+                          <span className="text-xs text-gray-400 line-through font-medium">
+                            {(Number(item.price) / 1000).toLocaleString()}K
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <button className="relative overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-orange-600 group-hover:text-white transition-all duration-500 shadow-lg shadow-gray-900/20 group-hover:shadow-orange-500/50 group-hover:scale-110 active:scale-95">
@@ -511,9 +519,16 @@ export default function Home() {
                     <span className="hidden md:block text-[10px] text-gray-400 group-hover:text-purple-500 font-medium transition-colors">
                       Price
                     </span>
-                    <span className="text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 font-black text-sm md:text-lg transition-colors">
-                      {(item.price / 1000).toLocaleString()}K
-                    </span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 font-black text-sm md:text-lg transition-colors">
+                        {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                      </span>
+                      {hasActiveDiscount(item) && (
+                        <span className="text-[11px] text-gray-400 line-through font-medium">
+                          {(Number(item.price) / 1000).toLocaleString()}K
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <button
@@ -618,9 +633,16 @@ export default function Home() {
 
                 {/* Footer (Price & Button) */}
                 <div className="relative z-20 flex items-center justify-between border-t border-white/10 group-hover:border-white/20 pt-2 md:pt-5 mt-auto px-1 md:px-0 transition-colors duration-300">
-                  <p className="text-sm md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-gray-300 transition-all">
-                    Rp {(item.price / 1000).toLocaleString()}K
-                  </p>
+                  <div className="flex flex-col">
+                    {hasActiveDiscount(item) && (
+                      <span className="text-[11px] text-gray-500 line-through font-medium">
+                        Rp {(Number(item.price) / 1000).toLocaleString()}K
+                      </span>
+                    )}
+                    <p className="text-sm md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-gray-300 transition-all">
+                      Rp {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                    </p>
+                  </div>
 
                   <button className="w-8 h-8 md:w-12 md:h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 hover:scale-110 transition-all duration-500 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] active:scale-95 relative overflow-hidden group/btn">
                     <svg

@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import LazyImage from "./LazyImage";
+import {
+  hasActiveDiscount,
+  getEffectivePrice,
+  getDiscountPercentage,
+} from "../lib/pricing";
 
 // =========================================
 // 1. CUSTOM HOOK: SCROLL ANIMATION
@@ -62,6 +67,9 @@ export default function ProductCard({
     ? (productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length).toFixed(1)
     : 0;
   const reviewCount = productReviews.length;
+  const isOnSale = hasActiveDiscount(item);
+  const effectivePrice = getEffectivePrice(item);
+  const discountPercent = getDiscountPercentage(item);
 
   const handleProductClick = () => {
     // Navigate dynamically based on the product type
@@ -95,6 +103,15 @@ export default function ProductCard({
               {item.category || "General"}
             </span>
           </div>
+
+          {/* Sale Discount Badge (Synced from sale_products) */}
+          {isOnSale && (
+            <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20">
+              <span className="bg-[#FF5500] text-white text-[9px] md:text-[10px] px-1.5 py-0.5 md:px-2 md:py-1 rounded-md font-black tracking-wide shadow-sm">
+                -{discountPercent}%
+              </span>
+            </div>
+          )}
 
           {/* Product Image */}
           <LazyImage
@@ -142,10 +159,17 @@ export default function ProductCard({
       </div>
 
       {/* Price & Add Button */}
-      <div className="flex items-center justify-between mt-2 md:mt-4">
-        <p className="text-[#FF5500] font-black text-xs md:text-base tracking-tight">
-          Rp {(item.price / 1000).toLocaleString()}K
-        </p>
+      <div className="flex items-end justify-between mt-2 md:mt-4 gap-2">
+        <div className="flex flex-col">
+          {isOnSale && (
+            <span className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 line-through font-medium leading-none mb-0.5">
+              Rp {(Number(item.price) / 1000).toLocaleString()}K
+            </span>
+          )}
+          <p className="text-[#FF5500] font-black text-xs md:text-base tracking-tight leading-tight">
+            Rp {(effectivePrice / 1000).toLocaleString()}K
+          </p>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
