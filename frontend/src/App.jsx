@@ -5,6 +5,7 @@ import { ReactLenis } from "lenis/react";
 import { CartProvider } from "./Context/CartContext.jsx";
 import { WishlistProvider } from "./Context/WishlistContext.jsx";
 import { ThemeProvider } from "./Context/ThemeContext.jsx";
+import { LanguageProvider, useLanguage } from "./Context/LanguageContext.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import Layout from "./components/Layout.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
@@ -48,7 +49,6 @@ axios.defaults.withCredentials = true;
 const Splash = lazyWithRetry(() => import("./pages/Splash.jsx"));
 const Login = lazyWithRetry(() => import("./pages/Login.jsx"));
 const Home = lazyWithRetry(() => import("./pages/Home.jsx"));
-const Catalog = lazyWithRetry(() => import("./pages/Catalog.jsx"));
 const Profile = lazyWithRetry(() => import("./pages/Profile.jsx"));
 const Sneakers = lazyWithRetry(() => import("./pages/Sneakers.jsx"));
 const Apparel = lazyWithRetry(() => import("./pages/Apparel.jsx"));
@@ -59,6 +59,8 @@ const Wishlist = lazyWithRetry(() => import("./pages/Wishlist.jsx"));
 const Checkout = lazyWithRetry(() => import("./pages/Checkout.jsx"));
 const OrderHistory = lazyWithRetry(() => import("./pages/OrderHistory.jsx"));
 const Search = lazyWithRetry(() => import("./pages/Search.jsx"));
+const VerifyAuthenticity = lazyWithRetry(() => import("./pages/VerifyAuthenticity.jsx"));
+const Drops = lazyWithRetry(() => import("./pages/Drops.jsx"));
 
 // === REACT QUERY CLIENT ===
 const queryClient = new QueryClient({
@@ -73,12 +75,22 @@ const queryClient = new QueryClient({
 
 // === LOADING FALLBACK COMPONENT ===
 function PageLoader() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-[#FF5500] rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading...</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{t("common.loading")}</p>
       </div>
+    </div>
+  );
+}
+
+function OfflineBanner() {
+  const { t } = useLanguage();
+  return (
+    <div className="bg-red-500 text-white text-xs font-bold text-center py-1 fixed top-0 w-full z-[100]">
+      {t("common.offlineBanner")}
     </div>
   );
 }
@@ -129,60 +141,61 @@ function App() {
   return (
     <ReactLenis root options={LENIS_OPTIONS}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <BrowserRouter>
-                <ScrollToTop />
-                <Toaster
-                  position="top-center"
-                  reverseOrder={false}
-                  toastOptions={{
-                    duration: 3000,
-                    style: {
-                      borderRadius: "12px",
-                      background: "#1F2937",
-                      color: "#fff",
-                      fontSize: "14px",
-                    },
-                  }}
-                />
-                {isOffline && (
-                  <div className="bg-red-500 text-white text-xs font-bold text-center py-1 fixed top-0 w-full z-[100]">
-                    OFFLINE MODE - GUEST ACCESS
-                  </div>
-                )}
+        <LanguageProvider>
+          <ThemeProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <BrowserRouter>
+                  <ScrollToTop />
+                  <Toaster
+                    position="top-center"
+                    reverseOrder={false}
+                    toastOptions={{
+                      duration: 3000,
+                      style: {
+                        borderRadius: "12px",
+                        background: "#1F2937",
+                        color: "#fff",
+                        fontSize: "14px",
+                      },
+                    }}
+                  />
+                  {isOffline && <OfflineBanner />}
 
-                <ErrorBoundary>
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      <Route path="/" element={<Splash />} />
-                      <Route path="/login" element={<Login />} />
+                  <ErrorBoundary>
+                    <Suspense fallback={<PageLoader />}>
+                      <Routes>
+                        <Route path="/" element={<Splash />} />
+                        <Route path="/login" element={<Login />} />
 
-                      {/* Layout membungkus semua halaman utama */}
-                      <Route element={<Layout />}>
-                        <Route path="/home" element={<Home />} />
-                        <Route path="/catalog" element={<Catalog />} />
-                        <Route path="/sneakers" element={<Sneakers />} />
-                        <Route path="/apparel" element={<Apparel />} />
-                        <Route path="/sale" element={<Sale />} />
-                        <Route path="/wishlist" element={<Wishlist />} />
-                        <Route path="/product/:type/:id" element={<ProductDetail />} />
-                        <Route path="/cart" element={<Cart />} />
-                        <Route path="/checkout" element={<Checkout />} />
-                        <Route path="/orders" element={<OrderHistory />} />
-                        <Route path="/search" element={<Search />} />
-                        <Route path="/profile" element={<Profile />} />
-                      </Route>
+                        {/* Layout membungkus semua halaman utama */}
+                        <Route element={<Layout />}>
+                          <Route path="/home" element={<Home />} />
+                          <Route path="/catalog" element={<Navigate to="/sneakers" replace />} />
+                          <Route path="/sneakers" element={<Sneakers />} />
+                          <Route path="/apparel" element={<Apparel />} />
+                          <Route path="/drops" element={<Drops />} />
+                          <Route path="/sale" element={<Sale />} />
+                          <Route path="/wishlist" element={<Wishlist />} />
+                          <Route path="/product/:type/:id" element={<ProductDetail />} />
+                          <Route path="/cart" element={<Cart />} />
+                          <Route path="/checkout" element={<Checkout />} />
+                          <Route path="/orders" element={<OrderHistory />} />
+                          <Route path="/search" element={<Search />} />
+                          <Route path="/profile" element={<Profile />} />
+                          <Route path="/verify" element={<VerifyAuthenticity />} />
+                          <Route path="/verify/:code" element={<VerifyAuthenticity />} />
+                        </Route>
 
-                      <Route path="*" element={<Navigate to="/home" replace />} />
-                    </Routes>
-                  </Suspense>
-                </ErrorBoundary>
-              </BrowserRouter>
-            </WishlistProvider>
-          </CartProvider>
-        </ThemeProvider>
+                        <Route path="*" element={<Navigate to="/home" replace />} />
+                      </Routes>
+                    </Suspense>
+                  </ErrorBoundary>
+                </BrowserRouter>
+              </WishlistProvider>
+            </CartProvider>
+          </ThemeProvider>
+        </LanguageProvider>
       </QueryClientProvider>
     </ReactLenis>
   );
