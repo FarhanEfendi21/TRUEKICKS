@@ -5,50 +5,75 @@ import { HiOutlineHeart, HiHeart } from "react-icons/hi2";
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
 import { useTheme } from "../Context/ThemeContext";
+import { useLanguage } from "../Context/LanguageContext";
 import { logout } from "../lib/api";
+import { formatRupiahShort, getEffectivePrice } from "../lib/pricing";
 import SearchBar from "./SearchBar";
 
 
 const catalogCategories = [
   {
-    title: "Popular Brands",
+    id: "brands",
+    titleKey: "nav.popularBrands",
     items: [
-      "Nike",
-      "Adidas",
-      "New Balance",
-      "Puma",
-      "Converse",
-      "Vans",
-      "Asics",
+      { value: "Nike" },
+      { value: "Adidas" },
+      { value: "New Balance" },
+      { value: "Puma" },
+      { value: "Converse" },
+      { value: "Vans" },
+      { value: "Asics" },
     ],
   },
   {
-    title: "Trending Models",
+    id: "trending",
+    titleKey: "nav.trendingModels",
     items: [
-      "Air Jordan 1",
-      "Salomon XT-6",
-      "Adidas Samba",
-      "New Balance 530",
-      "Puma Speedcat",
-      "Nike P-6000",
+      { value: "Air Jordan 1" },
+      { value: "Salomon XT-6" },
+      { value: "Adidas Samba" },
+      { value: "New Balance 530" },
+      { value: "Puma Speedcat" },
+      { value: "Nike P-6000" },
     ],
   },
   {
-    title: "Categories",
+    id: "categories",
+    titleKey: "nav.categories",
     items: [
-      "Running",
-      "Basketball",
-      "Lifestyle",
-      "Skateboarding",
-      "Training",
-      "Sandals",
+      { value: "Running", idLabel: "Lari", enLabel: "Running" },
+      { value: "Basketball", idLabel: "Basket", enLabel: "Basketball" },
+      { value: "Lifestyle", idLabel: "Kasual", enLabel: "Lifestyle" },
+      { value: "Skateboarding", idLabel: "Skate", enLabel: "Skateboarding" },
+      { value: "Training", idLabel: "Latihan", enLabel: "Training" },
+      { value: "Sandals", idLabel: "Sandal", enLabel: "Sandals" },
     ],
   },
   {
-    title: "Collections",
-    items: ["New Arrivals", "Best Sellers", "Sale & Deals"],
+    id: "collections",
+    titleKey: "nav.collections",
+    items: [
+      { value: "Drop Calendar", labelKey: "nav.dropCalendar" },
+      { value: "New Arrivals", labelKey: "nav.newArrivals" },
+      { value: "Best Sellers", labelKey: "nav.bestSellers" },
+      { value: "Sale & Deals", labelKey: "nav.saleDeals" },
+    ],
   },
 ];
+
+const readStoredUser = () => {
+  try {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return null;
+    const parsedUser = JSON.parse(storedUser);
+    if (parsedUser?.email && !parsedUser.email.includes("guest")) {
+      return parsedUser;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
 
 // ==================================================
 // NAVBAR COMPONENT
@@ -59,12 +84,13 @@ export default function Navbar() {
   const [showCatalog, setShowCatalog] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const [user, setUser] = useState(null);
-  const [profileImage, setProfileImage] = useState(null);
+  const [user, setUser] = useState(readStoredUser);
+  const [profileImage, setProfileImage] = useState(() => localStorage.getItem("profileImage"));
 
   const { totalItems, refreshCart } = useCart();
   const { wishlistItems, removeFromWishlist, refreshWishlist } = useWishlist();
   const { isDark, toggleTheme } = useTheme();
+  const { language, setLanguage, t, pick } = useLanguage();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,34 +113,24 @@ export default function Navbar() {
   }, [showCatalog]);
 
   // -----------------------------------------------
-  // LOAD USER FROM LOCAL STORAGE
+  // SYNC USER & SCROLL LISTENERS
   // -----------------------------------------------
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedProfileImage = localStorage.getItem("profileImage");
-
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-
-      // === LOGIKA BARU: CEK APAKAH INI GUEST? ===
-      // Jika email bukan guest, baru set sebagai user login
-      if (parsedUser.email && !parsedUser.email.includes("guest")) {
-        setUser(parsedUser);
-      } else {
-        // Jika guest, pastikan state user kosong (agar tampilan tetap mode tamu)
-        setUser(null);
-      }
-    }
-
-    if (storedProfileImage) {
-      setProfileImage(storedProfileImage);
-    }
+    const handleStorageSync = () => {
+      setUser(readStoredUser());
+      setProfileImage(localStorage.getItem("profileImage"));
+    };
 
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
+
+    window.addEventListener("storage", handleStorageSync);
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("storage", handleStorageSync);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   // -----------------------------------------------
@@ -130,11 +146,6 @@ export default function Navbar() {
     navigate("/login", { replace: true });
   };
 
-  const handleWishlistNav = (path) => {
-    setShowWishlist(false);
-    navigate(path);
-  };
-
   const getInitials = (name) => {
     if (!name) return "U";
     return name
@@ -144,11 +155,6 @@ export default function Navbar() {
       .toUpperCase()
       .slice(0, 2);
   };
-
-  const isActive = (path) =>
-    location.pathname === path
-      ? "text-[#FF5500] font-bold"
-      : "text-gray-600 hover:text-black";
 
   // ==================================================
   // RENDER
@@ -187,18 +193,20 @@ export default function Navbar() {
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
-              Home
+              {t("nav.home")}
             </Link>
 
             {/* CATALOG MENU */}
             <div className="relative h-full flex items-center">
               <button
+                type="button"
+                aria-expanded={showCatalog}
                 onClick={() => setShowCatalog(!showCatalog)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all duration-200 ${showCatalog
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                   : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
               >
-                Catalog
+                {t("nav.catalog")}
                 <svg
                   className={`w-3.5 h-3.5 transition-transform duration-300 ${showCatalog ? "rotate-180" : ""}`}
                   fill="none"
@@ -217,7 +225,7 @@ export default function Navbar() {
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
-              Sneakers
+              {t("nav.sneakers")}
             </Link>
 
             <Link
@@ -226,32 +234,78 @@ export default function Navbar() {
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
-              Apparel
+              {t("nav.apparel")}
+            </Link>
+
+            <Link
+              to="/drops"
+              className={`px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 ${location.pathname === '/drops'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
+              {t("nav.drops")}
             </Link>
 
             <Link
               to="/sale"
-              className="px-4 py-2 rounded-full text-red-500 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+              className={`px-4 py-2 rounded-full font-semibold transition-all duration-200 ${location.pathname === '/sale'
+                ? 'bg-red-500 text-white shadow-sm'
+                : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
             >
-              Sale
+              {t("nav.sale")}
             </Link>
           </div>
 
           {/* ==================================================
              ACTION BUTTONS (RIGHT)
           ================================================== */}
-          <div className="flex items-center gap-1.5 md:gap-2 lg:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-2 lg:gap-2.5 flex-shrink-0">
 
-            {/* === SEARCH BAR === */}
-            <div className="hidden lg:block">
+            {/* === SEARCH BAR (Visible Desktop & Mobile) === */}
+            <div>
               <SearchBar />
+            </div>
+
+            {/* === LANGUAGE SWITCHER (ID | EN) === */}
+            <div
+              role="group"
+              aria-label={t("common.languageLabel")}
+              className="flex items-center rounded-full bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-md p-0.5"
+            >
+              <button
+                type="button"
+                onClick={() => setLanguage("id")}
+                aria-label={t("common.switchToId")}
+                aria-pressed={language === "id"}
+                className={`px-2 py-1.5 rounded-full text-[11px] font-bold leading-none transition-all duration-200 ${
+                  language === "id"
+                    ? "bg-white dark:bg-gray-950 text-gray-950 dark:text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                ID
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                aria-label={t("common.switchToEn")}
+                aria-pressed={language === "en"}
+                className={`px-2 py-1.5 rounded-full text-[11px] font-bold leading-none transition-all duration-200 ${
+                  language === "en"
+                    ? "bg-white dark:bg-gray-950 text-gray-950 dark:text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                EN
+              </button>
             </div>
 
             {/* === DARK MODE TOGGLE (Visible Desktop & Mobile) === */}
             <button
               onClick={toggleTheme}
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              title={isDark ? "Light Mode" : "Dark Mode"}
+              aria-label={isDark ? t("nav.switchLight") : t("nav.switchDark")}
+              title={isDark ? t("nav.lightMode") : t("nav.darkMode")}
               className="group relative p-2.5 rounded-full bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-md text-gray-600 dark:text-amber-400 transition-all duration-300 active:scale-95"
             >
               {isDark ? (
@@ -288,6 +342,9 @@ export default function Navbar() {
             {/* === WISHLIST BUTTON === */}
             <div className="relative hidden lg:block">
               <button
+                type="button"
+                aria-label={t("nav.openWishlist")}
+                aria-expanded={showWishlist}
                 onClick={() => setShowWishlist(!showWishlist)}
                 className={`
                     group relative p-2 rounded-full transition-all duration-300
@@ -326,16 +383,20 @@ export default function Navbar() {
                   {/* Header Dropdown */}
                   <div className="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/80">
                     <h3 className="font-black text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200">
-                      My Wishlist{" "}
+                      {t("nav.myWishlist")}{" "}
                       <span className="text-[#FF5500]">
                         ({wishlistItems.length})
                       </span>
                     </h3>
                     <button
+                      type="button"
+                      aria-label={t("nav.closeWishlist")}
                       onClick={() => setShowWishlist(false)}
                       className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-400 transition-colors"
                     >
-                      ✕
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-3.5 h-3.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                   </div>
 
@@ -350,10 +411,10 @@ export default function Navbar() {
                           <HiOutlineHeart className="w-6 h-6 text-gray-300 dark:text-gray-500" />
                         </div>
                         <p className="text-xs font-bold text-gray-900 dark:text-white">
-                          Your wishlist is empty
+                          {t("nav.emptyWishlistTitle")}
                         </p>
                         <p className="text-[10px] text-gray-400 mt-1">
-                          Save items you love here.
+                          {t("nav.emptyWishlistSub")}
                         </p>
                       </div>
                     ) : (
@@ -381,7 +442,7 @@ export default function Navbar() {
                               {item.name}
                             </p>
                             <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">
-                              Rp {(item.price / 1000).toLocaleString()}K
+                              {formatRupiahShort(getEffectivePrice(item))}
                             </p>
                           </div>
 
@@ -392,7 +453,7 @@ export default function Navbar() {
                               removeFromWishlist(item.id, item.productType);
                             }}
                             className="self-center p-2 text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-all"
-                            title="Remove from wishlist"
+                            title={t("nav.removeFromWishlist")}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -423,7 +484,7 @@ export default function Navbar() {
                         }}
                         className="w-full py-2 text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-black hover:text-white hover:border-black dark:hover:bg-[#FF5500] dark:hover:border-[#FF5500] transition-all shadow-sm"
                       >
-                        View Full Wishlist
+                        {t("nav.viewFullWishlist")}
                       </button>
                     </div>
                   )}
@@ -433,8 +494,10 @@ export default function Navbar() {
 
             {/* CART */}
             <button
+              type="button"
+              aria-label={t("nav.openBag")}
               onClick={() => navigate("/cart")}
-              className="hidden md:block group relative p-2 rounded-full hover:bg-orange-50 dark:hover:bg-gray-800 transition-all duration-300"
+              className={`${location.pathname.startsWith("/product/") ? "block" : "hidden md:block"} group relative p-2 rounded-full hover:bg-orange-50 dark:hover:bg-gray-800 transition-all duration-300`}
             >
               {/* Icon */}
               <div className="relative transition-all duration-300 group-hover:scale-[1.15] group-hover:-translate-y-0.5 group-active:scale-95">
@@ -469,6 +532,9 @@ export default function Navbar() {
             {user ? (
               <div className="relative hidden md:block">
                 <button
+                  type="button"
+                  aria-label={t("nav.openAccount")}
+                  aria-expanded={showUserMenu}
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="group flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full pl-1 pr-3 py-1 transition-all duration-200"
                 >
@@ -512,21 +578,31 @@ export default function Navbar() {
                         onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
-                        <span>👤</span> My Profile
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        <span>{t("nav.myProfile")}</span>
                       </Link>
                       <Link
                         to="/orders"
                         onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
-                        <span>📦</span> My Orders
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
+                        <span>{t("nav.myOrders")}</span>
                       </Link>
                       <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
                       <button
+                        type="button"
                         onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-left"
                       >
-                        <span>🚪</span> Logout
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                        </svg>
+                        <span>{t("nav.logout")}</span>
                       </button>
                     </div>
                   </div>
@@ -538,7 +614,7 @@ export default function Navbar() {
                 className="hidden md:flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-2 rounded-full 
                            font-semibold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
               >
-                Sign In
+                {t("nav.signIn")}
               </button>
             )}
           </div>
@@ -555,47 +631,53 @@ export default function Navbar() {
           >
             <div className="max-w-7xl mx-auto px-6 py-8">
               <div className="grid grid-cols-4 gap-10">
-                {catalogCategories.map((category, index) => (
-                  <div key={index}>
+                {catalogCategories.map((category) => (
+                  <div key={category.id}>
                     <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider mb-4 flex items-center gap-2">
                       <span className="w-6 h-0.5 bg-[#FF5500] rounded-full"></span>
-                      {category.title}
+                      {t(category.titleKey)}
                     </h3>
 
                     <ul className="space-y-2">
-                      {category.items.map((item, idx) => {
+                      {category.items.map((item) => {
                         let targetPath = "/sneakers";
                         let stateData = null;
 
-                        if (category.title === "Collections") {
-                          if (item === "Sale & Deals") targetPath = "/sale";
-                          else if (item === "New Arrivals") {
+                        if (category.id === "collections") {
+                          if (item.value === "Drop Calendar") targetPath = "/drops";
+                          else if (item.value === "Sale & Deals") targetPath = "/sale";
+                          else if (item.value === "New Arrivals") {
                             targetPath = "/home";
                             stateData = { scrollTo: "new-arrivals" };
-                          }
-                          else if (item === "Best Sellers") {
+                          } else if (item.value === "Best Sellers") {
                             targetPath = "/home";
                             stateData = { scrollTo: "best-sellers" };
                           }
                         } else {
                           let stateKey = "keyword";
-                          if (category.title === "Categories") {
+                          if (category.id === "categories") {
                             stateKey = "typeFilter";
-                          } else if (category.title === "Popular Brands") {
+                          } else if (category.id === "brands") {
                             stateKey = "brand";
                           }
-                          stateData = { [stateKey]: item };
+                          stateData = { [stateKey]: item.value };
                         }
 
+                        const displayLabel = item.labelKey
+                          ? t(item.labelKey)
+                          : item.idLabel
+                          ? pick(item.idLabel, item.enLabel)
+                          : item.value;
+
                         return (
-                          <li key={idx}>
+                          <li key={item.value}>
                             <Link
                               to={targetPath}
                               state={stateData}
                               onClick={() => setShowCatalog(false)}
                               className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] dark:hover:text-[#FF5500] transition text-sm font-medium hover:translate-x-1 inline-block"
                             >
-                              {item}
+                              {displayLabel}
                             </Link>
                           </li>
                         );

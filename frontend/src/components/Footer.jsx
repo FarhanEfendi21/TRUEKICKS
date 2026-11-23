@@ -1,10 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "../Context/LanguageContext";
 
 export default function Footer({ showOnMobile = false }) {
-  const whatsappNumber = "081392460881";
-  const whatsappMessage = "Halo TrueKicks, saya butuh bantuan...";
+  const { language, setLanguage, t } = useLanguage();
+  const whatsappNumber = "6281392460881";
+  const whatsappMessage = t("footer.waMessage");
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className={`bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 font-poppins border-t border-gray-100 dark:border-gray-800 pb-24 md:pb-0 transition-colors duration-300 ${showOnMobile ? '' : 'hidden md:block'}`}>
@@ -24,7 +27,7 @@ export default function Footer({ showOnMobile = false }) {
                 TRUE<span className="text-[#FF5500]">KICKS</span>
               </h2>
             </Link>
-            <p className="text-xs text-gray-400 mt-2 tracking-wide">Premium Authentic Sneakers</p>
+            <p className="text-xs text-gray-400 mt-2 tracking-wide">{t("footer.tagline")}</p>
 
             {/* Social Icons */}
             <div className="flex gap-2 mt-5 justify-center md:justify-start">
@@ -32,6 +35,7 @@ export default function Footer({ showOnMobile = false }) {
                 href="https://www.instagram.com/efndfrhn"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="TrueKicks Instagram"
                 className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-gray-800 flex items-center justify-center text-white hover:bg-[#FF5500] dark:hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -41,9 +45,10 @@ export default function Footer({ showOnMobile = false }) {
                 </svg>
               </a>
               <a
-                href="https://github.com/FarhanEfendi21/kapanselesainya"
+                href="https://github.com/FarhanEfendi21/TRUEKICKS"
                 target="_blank"
                 rel="noreferrer"
+                aria-label="TrueKicks GitHub"
                 className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-gray-800 flex items-center justify-center text-white hover:bg-[#FF5500] dark:hover:bg-[#FF5500] hover:scale-110 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -57,12 +62,13 @@ export default function Footer({ showOnMobile = false }) {
           <div className="text-center md:text-left">
             <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
-              Shop
+              {t("footer.shop")}
             </h3>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/sneakers" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sneakers</Link></li>
-              <li><Link to="/apparel" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Apparel</Link></li>
-              <li><Link to="/sale" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Sale</Link></li>
+              <li><Link to="/sneakers" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.sneakers")}</Link></li>
+              <li><Link to="/apparel" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.apparel")}</Link></li>
+              <li><Link to="/drops" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.dropCalendar")}</Link></li>
+              <li><Link to="/sale" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.sale")}</Link></li>
             </ul>
           </div>
 
@@ -70,12 +76,14 @@ export default function Footer({ showOnMobile = false }) {
           <div className="text-center md:text-left">
             <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
-              Account
+              {t("footer.account")}
             </h3>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/profile" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Profile</Link></li>
-              <li><Link to="/cart" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Cart</Link></li>
-              <li><Link to="/wishlist" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">Wishlist</Link></li>
+              <li><Link to="/profile" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.profile")}</Link></li>
+              <li><Link to="/orders" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.myOrders")}</Link></li>
+              <li><Link to="/cart" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.cart")}</Link></li>
+              <li><Link to="/wishlist" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("nav.wishlist")}</Link></li>
+              <li><Link to="/verify" className="text-gray-500 dark:text-gray-400 hover:text-[#FF5500] hover:translate-x-1 transition-all inline-block">{t("footer.authenticityVerify")}</Link></li>
             </ul>
           </div>
 
@@ -83,7 +91,7 @@ export default function Footer({ showOnMobile = false }) {
           <div className="col-span-2 md:col-span-1 text-center md:text-left">
             <h3 className="text-xs font-bold text-gray-900 dark:text-gray-200 uppercase tracking-widest mb-4 flex items-center justify-center md:justify-start gap-2">
               <span className="w-1 h-1 rounded-full bg-[#FF5500]"></span>
-              Contact
+              {t("footer.contact")}
             </h3>
 
             {/* Phone Number */}
@@ -107,14 +115,38 @@ export default function Footer({ showOnMobile = false }) {
         {/* Bottom Bar */}
         <div className="mt-10 pt-6 border-t border-gray-200/50 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span>&copy; 2024 TrueKicks Indonesia</span>
+            <span>&copy; {currentYear} TrueKicks Indonesia</span>
             <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">All rights reserved</span>
+            <span className="hidden sm:inline">{t("footer.rights")}</span>
           </p>
-          <div className="flex gap-4 text-xs">
-            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">Privacy Policy</span>
+          <div className="flex items-center gap-4 text-xs">
+            <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-900 px-2 py-1 border border-gray-200/60 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setLanguage("id")}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                  language === "id"
+                    ? "bg-gray-900 dark:bg-white text-white dark:text-gray-950"
+                    : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
+              >
+                ID
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                  language === "en"
+                    ? "bg-gray-900 dark:bg-white text-white dark:text-gray-950"
+                    : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
+              >
+                EN
+              </button>
+            </div>
+            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">{t("footer.privacy")}</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">Terms of Service</span>
+            <span className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">{t("footer.terms")}</span>
           </div>
         </div>
       </div>
