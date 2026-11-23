@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../lib/api";
 import toast from "react-hot-toast";
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
+import { useLanguage } from "../Context/LanguageContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from || "/home";
   const { refreshCart } = useCart();
   const { refreshWishlist } = useWishlist();
+  const { language, setLanguage, pick } = useLanguage();
 
   // State Form
   const [activeTab, setActiveTab] = useState("login");
@@ -37,8 +41,8 @@ export default function Login() {
 
   const getPasswordStrength = (pass) => {
     if (!pass) return { level: "", color: "", width: "0%" };
-    if (pass.length < 6) return { level: "Too short", color: "#ef4444", width: "20%" };
-    if (pass.length < 8) return { level: "Weak", color: "#f97316", width: "40%" };
+    if (pass.length < 6) return { level: pick("Terlalu pendek", "Too short"), color: "#ef4444", width: "20%" };
+    if (pass.length < 8) return { level: pick("Lemah", "Weak"), color: "#f97316", width: "40%" };
 
     const hasUppercase = /[A-Z]/.test(pass);
     const hasNumber = /[0-9]/.test(pass);
@@ -46,11 +50,11 @@ export default function Login() {
 
     const score = [hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
 
-    if (score === 0) return { level: "Fair", color: "#eab308", width: "50%" };
-    if (score === 1) return { level: "Good", color: "#22c55e", width: "70%" };
-    if (score >= 2) return { level: "Strong", color: "#16a34a", width: "100%" };
+    if (score === 0) return { level: pick("Cukup", "Fair"), color: "#eab308", width: "50%" };
+    if (score === 1) return { level: pick("Baik", "Good"), color: "#22c55e", width: "70%" };
+    if (score >= 2) return { level: pick("Kuat", "Strong"), color: "#16a34a", width: "100%" };
 
-    return { level: "Fair", color: "#eab308", width: "50%" };
+    return { level: pick("Cukup", "Fair"), color: "#eab308", width: "50%" };
   };
 
   const passwordStrength = getPasswordStrength(password);
@@ -80,33 +84,33 @@ export default function Login() {
     // VALIDATION
     if (activeTab === "signup") {
       if (!fullName.trim()) {
-        toast.error("Full Name is required");
+        toast.error(pick("Nama lengkap wajib diisi", "Full Name is required"));
         return;
       }
       if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-        toast.error("Name must be between 2-100 characters");
+        toast.error(pick("Nama harus antara 2–100 karakter", "Name must be between 2-100 characters"));
         return;
       }
     }
 
     if (!validateEmail(normalizedEmail)) {
-      toast.error("Please enter a valid email address");
+      toast.error(pick("Masukkan alamat email yang valid", "Please enter a valid email address"));
       return;
     }
 
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(pick("Kata sandi minimal 6 karakter", "Password must be at least 6 characters"));
       return;
     }
 
     if (activeTab === "signup" && !/\d/.test(password)) {
-      toast.error("Password must contain at least one number");
+      toast.error(pick("Kata sandi harus mengandung minimal 1 angka", "Password must contain at least one number"));
       return;
     }
 
     // Confirm password validation for signup
     if (activeTab === "signup" && password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(pick("Konfirmasi kata sandi tidak cocok", "Passwords do not match"));
       return;
     }
 
@@ -121,7 +125,7 @@ export default function Login() {
           password: password,
         });
 
-        toast.success("Registration Successful! Please Log In.");
+        toast.success(pick("Pendaftaran berhasil! Silakan masuk.", "Registration Successful! Please Log In."));
 
         // Clear old profile image for new account
         localStorage.removeItem("profileImage");
@@ -142,17 +146,16 @@ export default function Login() {
 
         // Simpan data bersih ke LocalStorage (JWT Token kini diamankan via HttpOnly Cookie dari server)
         localStorage.setItem("user", JSON.stringify(userData));
-        // localStorage.removeItem("token"); // Cleanup legacy tokens just in case
 
         refreshCart();
         refreshWishlist();
 
-        toast.success("Welcome back!", { duration: 2000 });
+        toast.success(pick("Selamat datang kembali!", "Welcome back!"), { duration: 2000 });
 
-        // Delay sedikit agar toast terbaca sebelum pindah
+        // Delay sedikit agar toast terbaca sebelum kembali ke halaman asal
         setTimeout(() => {
-          navigate("/home");
-        }, 1000);
+          navigate(redirectTo, { replace: true });
+        }, 700);
       }
     } catch (error) {
       console.error("Auth Error:", error);
@@ -161,15 +164,15 @@ export default function Login() {
         const errDataMsg =
           (Array.isArray(backendErrors) && backendErrors.length > 0
             ? backendErrors.join(". ")
-            : error.response.data?.message) || "Authentication failed";
+            : error.response.data?.message) || pick("Autentikasi gagal", "Authentication failed");
         // Check if the error message is raw HTML (like Cloudflare 521 error when Supabase is down)
         if (typeof errDataMsg === 'string' && (errDataMsg.includes("<!DOCTYPE html>") || errDataMsg.includes("521: Web server is down"))) {
-          toast.error("Database (Supabase) is unavailable or paused. Please restore it in your dashboard.");
+          toast.error(pick("Database sedang tidak tersedia. Silakan coba beberapa saat lagi.", "Database (Supabase) is unavailable or paused. Please restore it in your dashboard."));
         } else {
           toast.error(errDataMsg);
         }
       } else {
-        toast.error("Network Error. Check your connection.");
+        toast.error(pick("Gangguan jaringan. Periksa koneksi internetmu.", "Network Error. Check your connection."));
       }
     } finally {
       setIsLoading(false);
@@ -183,8 +186,7 @@ export default function Login() {
     refreshCart();
     refreshWishlist();
 
-    toast("Continue as Guest", {
-      icon: "👀",
+    toast(pick("Melanjutkan sebagai Tamu", "Continuing as Guest"), {
       style: {
         borderRadius: "10px",
         background: "#333",
@@ -200,25 +202,25 @@ export default function Login() {
   // === VALIDATION ERROR GETTERS ===
   const getEmailError = () => {
     if (!touched.email) return null;
-    if (!email) return "Email is required";
-    if (!validateEmail(email)) return "Invalid email format";
+    if (!email) return pick("Email wajib diisi", "Email is required");
+    if (!validateEmail(email)) return pick("Format email tidak valid", "Invalid email format");
     return null;
   };
 
   const getPasswordError = () => {
     if (!touched.password) return null;
-    if (!password) return "Password is required";
-    if (password.length < 6) return "At least 6 characters required";
+    if (!password) return pick("Kata sandi wajib diisi", "Password is required");
+    if (password.length < 6) return pick("Minimal 6 karakter", "At least 6 characters required");
     if (activeTab === "signup" && !/\d/.test(password)) {
-      return "Must contain at least one number";
+      return pick("Harus mengandung minimal 1 angka", "Must contain at least one number");
     }
     return null;
   };
 
   const getConfirmPasswordError = () => {
     if (!touched.confirmPassword || activeTab !== "signup") return null;
-    if (!confirmPassword) return "Please confirm your password";
-    if (password !== confirmPassword) return "Passwords do not match";
+    if (!confirmPassword) return pick("Konfirmasi kata sandi", "Please confirm your password");
+    if (password !== confirmPassword) return pick("Kata sandi tidak cocok", "Passwords do not match");
     return null;
   };
 
@@ -227,7 +229,32 @@ export default function Login() {
   const confirmPasswordError = getConfirmPasswordError();
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-poppins bg-[#FAFAFA] dark:bg-gray-950 px-4 transition-colors duration-300">
+    <div className="relative min-h-screen flex items-center justify-center font-poppins bg-[#FAFAFA] dark:bg-gray-950 px-4 transition-colors duration-300">
+      {/* Top-right Minimalist Language Toggle */}
+      <div className="absolute top-5 right-5 flex items-center rounded-full bg-white dark:bg-gray-900 p-1 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setLanguage("id")}
+          className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+            language === "id"
+              ? "bg-gray-950 dark:bg-[#FF5500] text-white"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          }`}
+        >
+          ID
+        </button>
+        <button
+          type="button"
+          onClick={() => setLanguage("en")}
+          className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+            language === "en"
+              ? "bg-gray-950 dark:bg-[#FF5500] text-white"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          }`}
+        >
+          EN
+        </button>
+      </div>
 
       <div className="w-full max-w-[420px]">
         {/* LOGO */}
@@ -236,7 +263,7 @@ export default function Login() {
             TRUE<span className="text-[#FF5500]">KICKS</span>
           </h1>
           <p className="text-gray-400 text-sm mt-2 font-medium tracking-wide">
-            Welcome back to the game.
+            {pick("Selamat datang kembali di TrueKicks.", "Welcome back to the game.")}
           </p>
         </div>
 
@@ -252,7 +279,7 @@ export default function Login() {
                 : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
             >
-              Sign Up
+              {pick("Daftar", "Sign Up")}
               {activeTab === "signup" && (
                 <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black dark:bg-[#FF5500] rounded-full"></div>
               )}
@@ -264,7 +291,7 @@ export default function Login() {
                 : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
             >
-              Log In
+              {pick("Masuk", "Log In")}
               {activeTab === "login" && (
                 <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black dark:bg-[#FF5500] rounded-full"></div>
               )}
@@ -277,12 +304,12 @@ export default function Login() {
             {activeTab === "signup" && (
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
-                  Full Name
+                  {pick("Nama Lengkap", "Full Name")}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Enter your full name"
+                  placeholder={pick("Masukkan nama lengkapmu", "Enter your full name")}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl outline-none focus:border-black dark:focus:border-[#FF5500] focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
@@ -294,7 +321,7 @@ export default function Login() {
             {/* Input Email */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
-                Email Address
+                {pick("Alamat Email", "Email Address")}
               </label>
               <input
                 type="email"
@@ -315,7 +342,7 @@ export default function Login() {
             {/* Input Password */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
-                Password
+                {pick("Kata Sandi", "Password")}
               </label>
               <div className="relative">
                 <input
@@ -323,8 +350,8 @@ export default function Login() {
                   required
                   placeholder={
                     activeTab === "signup"
-                      ? "Min. 6 characters & at least 1 number"
-                      : "Enter your password"
+                      ? pick("Min. 6 karakter & minimal 1 angka", "Min. 6 characters & at least 1 number")
+                      : pick("Masukkan kata sandimu", "Enter your password")
                   }
                   autoComplete="new-password"
                   className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border text-gray-900 dark:text-white rounded-xl outline-none focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium pr-12 ${passwordError ? "border-red-400 focus:border-red-500" : "border-gray-200 dark:border-gray-700 focus:border-black dark:focus:border-[#FF5500]"
@@ -358,7 +385,7 @@ export default function Login() {
               {activeTab === "signup" && password && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-500">Password strength</span>
+                    <span className="text-xs text-gray-500">{pick("Kekuatan kata sandi", "Password strength")}</span>
                     <span className="text-xs font-medium" style={{ color: passwordStrength.color }}>
                       {passwordStrength.level}
                     </span>
@@ -380,13 +407,13 @@ export default function Login() {
             {activeTab === "signup" && (
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 ml-1 uppercase tracking-wider">
-                  Confirm Password
+                  {pick("Konfirmasi Kata Sandi", "Confirm Password")}
                 </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     required
-                    placeholder="Re-enter your password"
+                    placeholder={pick("Masukkan ulang kata sandimu", "Re-enter your password")}
                     className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border text-gray-900 dark:text-white rounded-xl outline-none focus:bg-white dark:focus:bg-gray-800 transition-all text-sm font-medium pr-12 ${confirmPasswordError ? "border-red-400 focus:border-red-500" :
                       (confirmPassword && password === confirmPassword) ? "border-green-400" : "border-gray-200 dark:border-gray-700 focus:border-black dark:focus:border-[#FF5500]"
                       }`}
@@ -434,9 +461,9 @@ export default function Login() {
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : activeTab === "login" ? (
-                "Log In"
+                pick("Masuk", "Log In")
               ) : (
-                "Create Account"
+                pick("Buat Akun", "Create Account")
               )}
             </button>
 
@@ -444,14 +471,14 @@ export default function Login() {
             <div className="text-center mt-4">
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 {activeTab === "login"
-                  ? "Don't have an account?"
-                  : "Already have an account?"}{" "}
+                  ? pick("Belum punya akun?", "Don't have an account?")
+                  : pick("Sudah punya akun?", "Already have an account?")}{" "}
                 <button
                   type="button"
                   onClick={() => handleTabSwitch(activeTab === "login" ? "signup" : "login")}
                   className="text-[#FF5500] font-bold hover:underline ml-1"
                 >
-                  {activeTab === "login" ? "Sign Up" : "Log In"}
+                  {activeTab === "login" ? pick("Daftar", "Sign Up") : pick("Masuk", "Log In")}
                 </button>
               </p>
             </div>
@@ -470,7 +497,7 @@ export default function Login() {
                 transition-all duration-300 
                 hover:-translate-y-0.5 active:scale-95 group"
           >
-            <span className="tracking-wide">Continue as Guest</span>
+            <span className="tracking-wide">{pick("Lanjut sebagai Tamu", "Continue as Guest")}</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"

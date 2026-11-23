@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import LazyImage from "./LazyImage";
+import { useLanguage } from "../Context/LanguageContext";
 import {
   hasActiveDiscount,
   getEffectivePrice,
   getDiscountPercentage,
+  formatRupiahShort,
 } from "../lib/pricing";
 
 // =========================================
@@ -51,6 +53,7 @@ export default function ProductCard({
   productType = "sneakers", // "sneakers" | "apparel" | "sale_products"
 }) {
   const navigate = useNavigate();
+  const { pick } = useLanguage();
   const [ref, isVisible] = useScrollAnimation();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -127,7 +130,7 @@ export default function ProductCard({
           {/* Quick View Overlay on Hover */}
           <div className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] flex items-center justify-center transition-all duration-300 ${isHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
             <span className="bg-white text-gray-900 text-xs font-bold px-4 py-2 rounded-full shadow-lg transform transition-all duration-300 hover:scale-105">
-              Quick View
+              {pick("Lihat Cepat", "Quick View")}
             </span>
           </div>
         </div>
@@ -154,7 +157,9 @@ export default function ProductCard({
 
         {/* No Reviews State */}
         {reviewCount === 0 && (
-          <p className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mt-1 md:mt-1.5 font-medium">No reviews yet</p>
+          <p className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mt-1 md:mt-1.5 font-medium">
+            {pick("Belum ada ulasan", "No reviews yet")}
+          </p>
         )}
       </div>
 
@@ -163,11 +168,11 @@ export default function ProductCard({
         <div className="flex flex-col">
           {isOnSale && (
             <span className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 line-through font-medium leading-none mb-0.5">
-              Rp {(Number(item.price) / 1000).toLocaleString()}K
+              {formatRupiahShort(item.price)}
             </span>
           )}
           <p className="text-[#FF5500] font-black text-xs md:text-base tracking-tight leading-tight">
-            Rp {(effectivePrice / 1000).toLocaleString()}K
+            {formatRupiahShort(effectivePrice)}
           </p>
         </div>
         <button

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "motion/react";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
-import { getEffectivePrice } from "../lib/pricing";
+import { getEffectivePrice, formatRupiah } from "../lib/pricing";
+import { useLanguage } from "../Context/LanguageContext";
 
 import p6000Silver from "../assets/p6000-silver.png";
 import airJordan from "../assets/airjordan.png";
@@ -69,6 +70,7 @@ function getCircularDelta(index, activeIndex, total) {
 }
 
 export default function HeroSneakerSlider({ products = [], onExplore }) {
+  const { pick } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
@@ -147,7 +149,7 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
   );
 
   const displayPrice = matchedActive
-    ? `Rp ${getEffectivePrice(matchedActive).toLocaleString("id-ID")}`
+    ? formatRupiah(getEffectivePrice(matchedActive))
     : activeSneaker.price;
 
   const handleSeeMore = () => {
@@ -300,7 +302,7 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
         <button
           type="button"
           onClick={handlePrev}
-          aria-label="Previous sneaker"
+          aria-label={pick("Sneaker sebelumnya", "Previous sneaker")}
           className="absolute left-1 sm:left-3 md:left-6 z-40 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/70 dark:bg-gray-900/60 backdrop-blur-md border border-gray-200/80 dark:border-white/10 text-gray-800 dark:text-gray-200 flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all"
         >
           <HiChevronLeft className="w-5 h-5" />
@@ -309,7 +311,7 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
         <button
           type="button"
           onClick={handleNext}
-          aria-label="Next sneaker"
+          aria-label={pick("Sneaker berikutnya", "Next sneaker")}
           className="absolute right-1 sm:right-3 md:right-6 z-40 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/70 dark:bg-gray-900/60 backdrop-blur-md border border-gray-200/80 dark:border-white/10 text-gray-800 dark:text-gray-200 flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all"
         >
           <HiChevronRight className="w-5 h-5" />
@@ -345,7 +347,7 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
           onClick={handleSeeMore}
           className="mt-6 px-9 py-3 rounded-full bg-gray-900/10 hover:bg-gray-900 hover:text-white dark:bg-white/10 dark:hover:bg-white dark:hover:text-gray-950 text-gray-800 dark:text-gray-100 backdrop-blur-md border border-gray-900/10 dark:border-white/15 text-[11px] font-bold tracking-[0.2em] uppercase transition-all duration-300 active:scale-95"
         >
-          See More
+          {pick("Lihat Detail", "See More")}
         </button>
       </div>
 

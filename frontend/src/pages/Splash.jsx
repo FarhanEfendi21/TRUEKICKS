@@ -1,19 +1,33 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../Context/LanguageContext";
+
+const SPLASH_SESSION_KEY = "tk_splash_seen";
 
 export default function Splash() {
   const navigate = useNavigate();
+  const { pick } = useLanguage();
   const [phase, setPhase] = useState(0); // 0: hidden, 1: logo in, 2: tagline in, 3: fade out
 
+  const finishSplash = () => {
+    sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+    navigate("/home", { replace: true });
+  };
+
   useEffect(() => {
-    // Phase 1: Logo appears
-    const t1 = setTimeout(() => setPhase(1), 200);
-    // Phase 2: Tagline appears  
-    const t2 = setTimeout(() => setPhase(2), 800);
-    // Phase 3: Fade out
-    const t3 = setTimeout(() => setPhase(3), 2400);
-    // Navigate
-    const t4 = setTimeout(() => navigate("/home"), 3000);
+    if (sessionStorage.getItem(SPLASH_SESSION_KEY)) {
+      navigate("/home", { replace: true });
+      return undefined;
+    }
+
+    // Crisp 1.6s intro (per-session only)
+    const t1 = setTimeout(() => setPhase(1), 100);
+    const t2 = setTimeout(() => setPhase(2), 450);
+    const t3 = setTimeout(() => setPhase(3), 1250);
+    const t4 = setTimeout(() => {
+      sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+      navigate("/home", { replace: true });
+    }, 1600);
 
     return () => {
       clearTimeout(t1);
@@ -25,7 +39,14 @@ export default function Splash() {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-gray-950 transition-opacity duration-500 ${
+      onClick={finishSplash}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") finishSplash();
+      }}
+      aria-label={pick("Lewati intro", "Skip intro")}
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-gray-950 transition-opacity duration-300 cursor-pointer ${
         phase >= 3 ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -40,7 +61,7 @@ export default function Splash() {
 
       {/* Logo */}
       <div
-        className={`relative transition-all duration-700 ease-out ${
+        className={`relative transition-all duration-500 ease-out ${
           phase >= 1
             ? "opacity-100 translate-y-0 scale-100"
             : "opacity-0 translate-y-4 scale-95"
@@ -53,25 +74,25 @@ export default function Splash() {
 
       {/* Divider line */}
       <div
-        className={`mt-4 mb-4 h-[1px] bg-gradient-to-r from-transparent via-[#FF5500]/40 to-transparent transition-all duration-700 ease-out ${
+        className={`mt-4 mb-4 h-[1px] bg-gradient-to-r from-transparent via-[#FF5500]/40 to-transparent transition-all duration-500 ease-out ${
           phase >= 1 ? "w-24 opacity-100" : "w-0 opacity-0"
         }`}
       />
 
       {/* Tagline */}
       <p
-        className={`text-[clamp(0.65rem,2.5vw,0.8rem)] font-medium tracking-[0.25em] uppercase text-gray-400 transition-all duration-700 ease-out ${
+        className={`text-[clamp(0.65rem,2.5vw,0.8rem)] font-medium tracking-[0.25em] uppercase text-gray-400 transition-all duration-500 ease-out ${
           phase >= 2
             ? "opacity-100 translate-y-0"
             : "opacity-0 translate-y-2"
         }`}
       >
-        Premium Sneaker Marketplace
+        {pick("Marketplace Sneakers Asli Pilihan", "Premium Sneaker Marketplace")}
       </p>
 
       {/* Minimal loading indicator */}
       <div
-        className={`mt-10 flex items-center gap-[6px] transition-all duration-500 ${
+        className={`mt-10 flex items-center gap-[6px] transition-all duration-300 ${
           phase >= 2 ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -80,14 +101,13 @@ export default function Splash() {
             key={i}
             className="w-[5px] h-[5px] rounded-full bg-[#FF5500]"
             style={{
-              animation: "dotPulse 1.2s ease-in-out infinite",
-              animationDelay: `${i * 0.15}s`,
+              animation: "dotPulse 1s ease-in-out infinite",
+              animationDelay: `${i * 0.12}s`,
             }}
           />
         ))}
       </div>
 
-      {/* Minimal keyframes */}
       <style>{`
         @keyframes dotPulse {
           0%, 100% { opacity: 0.2; transform: scale(0.8); }

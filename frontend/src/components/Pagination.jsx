@@ -1,5 +1,6 @@
 import { useState, useId, useMemo, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "motion/react";
+import { useLanguage } from "../Context/LanguageContext";
 
 const Pagination = ({
   currentPage,
@@ -9,6 +10,7 @@ const Pagination = ({
   itemsPerPage = 16,
   variant = "default",
 }) => {
+  const { pick } = useLanguage();
   const layoutId = useId();
   const [hoveredPage, setHoveredPage] = useState(null);
   const closeTimerRef = useRef(null);
@@ -150,7 +152,7 @@ const Pagination = ({
             }
             onFocus={() => currentPage > 1 && openPreview(currentPage - 1)}
             disabled={currentPage === 1}
-            aria-label="Previous page"
+            aria-label={pick("Halaman sebelumnya", "Previous page")}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
               currentPage === 1
                 ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"
@@ -197,7 +199,7 @@ const Pagination = ({
                   onMouseEnter={() => openPreview(page)}
                   onFocus={() => openPreview(page)}
                   aria-current={isActive ? "page" : undefined}
-                  aria-label={`Page ${page}`}
+                  aria-label={pick(`Halaman ${page}`, `Page ${page}`)}
                   className={`relative w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center transition-colors ${
                     isActive
                       ? isSale
@@ -234,7 +236,7 @@ const Pagination = ({
               currentPage < totalPages && openPreview(currentPage + 1)
             }
             disabled={currentPage === totalPages}
-            aria-label="Next page"
+            aria-label={pick("Halaman berikutnya", "Next page")}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
               currentPage === totalPages
                 ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"

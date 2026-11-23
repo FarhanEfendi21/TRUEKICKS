@@ -1,16 +1,24 @@
 import { useEffect } from "react";
+import { useLanguage } from "../Context/LanguageContext";
 
 export default function SizeGuide({ isOpen, onClose, type }) {
+    const { pick } = useLanguage();
     useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === "Escape") onClose?.();
+        };
+
         if (isOpen) {
             document.body.style.overflow = "hidden";
+            document.addEventListener("keydown", handleEsc);
         } else {
             document.body.style.overflow = "unset";
         }
         return () => {
             document.body.style.overflow = "unset";
+            document.removeEventListener("keydown", handleEsc);
         };
-    }, [isOpen]);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -27,13 +35,17 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                 {/* Header */}
                 <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-6 flex justify-between items-center z-20">
                     <h2 className="text-xl font-black uppercase tracking-wide">
-                        Size Guide - {type === "apparel" ? "Apparel" : "Sneakers"}
+                        {pick("Panduan Ukuran", "Size Guide")} - {type === "apparel" ? pick("Pakaian", "Apparel") : "Sneakers"}
                     </h2>
                     <button
+                        type="button"
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        aria-label={pick("Tutup panduan ukuran", "Close size guide")}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                        ✕
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
@@ -42,15 +54,15 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                     {type === "apparel" ? (
                         <div className="space-y-8">
                             <div>
-                                <h3 className="font-bold text-lg mb-4">Men's Tops (T-Shirts, Hoodies, Jackets)</h3>
+                                <h3 className="font-bold text-lg mb-4">{pick("Atasan Pria (Kaos, Hoodie, Jaket)", "Men's Tops (T-Shirts, Hoodies, Jackets)")}</h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase font-bold text-gray-500 dark:text-gray-400">
                                             <tr>
-                                                <th className="px-4 py-3 rounded-l-lg">Size</th>
-                                                <th className="px-4 py-3">Chest (cm)</th>
-                                                <th className="px-4 py-3">Waist (cm)</th>
-                                                <th className="px-4 py-3 rounded-r-lg">Hips (cm)</th>
+                                                <th className="px-4 py-3 rounded-l-lg">{pick("Ukuran", "Size")}</th>
+                                                <th className="px-4 py-3">{pick("Dada (cm)", "Chest (cm)")}</th>
+                                                <th className="px-4 py-3">{pick("Pinggang (cm)", "Waist (cm)")}</th>
+                                                <th className="px-4 py-3 rounded-r-lg">{pick("Pinggul (cm)", "Hips (cm)")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -96,24 +108,33 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                             </div>
 
                             <div>
-                                <h3 className="font-bold text-lg mb-4">How to Measure</h3>
+                                <h3 className="font-bold text-lg mb-4">{pick("Cara Mengukur", "How to Measure")}</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-800/70 p-6 rounded-2xl">
                                     <div className="space-y-2">
-                                        <h4 className="font-bold text-sm">1. Chest</h4>
+                                        <h4 className="font-bold text-sm">{pick("1. Dada", "1. Chest")}</h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                            Measure around the fullest part of your chest, keeping the tape measure horizontal.
+                                            {pick(
+                                                "Ukur lingkar bagian dada yang paling penuh dengan posisi meteran mendatar.",
+                                                "Measure around the fullest part of your chest, keeping the tape measure horizontal."
+                                            )}
                                         </p>
                                     </div>
                                     <div className="space-y-2">
-                                        <h4 className="font-bold text-sm">2. Waist</h4>
+                                        <h4 className="font-bold text-sm">{pick("2. Pinggang", "2. Waist")}</h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                            Measure around the narrowest part (typically where your body bends side to side), keeping the tape horizontal.
+                                            {pick(
+                                                "Ukur lingkar bagian pinggang yang paling ramping dengan posisi meteran mendatar.",
+                                                "Measure around the narrowest part (typically where your body bends side to side), keeping the tape horizontal."
+                                            )}
                                         </p>
                                     </div>
                                     <div className="space-y-2">
-                                        <h4 className="font-bold text-sm">3. Hips</h4>
+                                        <h4 className="font-bold text-sm">{pick("3. Pinggul", "3. Hips")}</h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                            Measure around the fullest part of your hips, keeping the tape horizontal.
+                                            {pick(
+                                                "Ukur lingkar bagian pinggul yang paling penuh dengan posisi meteran mendatar.",
+                                                "Measure around the fullest part of your hips, keeping the tape horizontal."
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -122,14 +143,14 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                     ) : (
                         <div className="space-y-8">
                             <div>
-                                <h3 className="font-bold text-lg mb-4">Sneakers Size Chart</h3>
+                                <h3 className="font-bold text-lg mb-4">{pick("Tabel Ukuran Sneakers", "Sneakers Size Chart")}</h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-center">
                                         <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase font-bold text-gray-500 dark:text-gray-400">
                                             <tr>
                                                 <th className="px-4 py-3 rounded-l-lg">EU</th>
-                                                <th className="px-4 py-3">US (Men)</th>
-                                                <th className="px-4 py-3">US (Women)</th>
+                                                <th className="px-4 py-3">{pick("US (Pria)", "US (Men)")}</th>
+                                                <th className="px-4 py-3">{pick("US (Wanita)", "US (Women)")}</th>
                                                 <th className="px-4 py-3">UK</th>
                                                 <th className="px-4 py-3 rounded-r-lg">CM</th>
                                             </tr>
@@ -204,9 +225,15 @@ export default function SizeGuide({ isOpen, onClose, type }) {
                             </div>
 
                             <div className="bg-orange-50 dark:bg-orange-500/10 p-4 rounded-xl border border-orange-100 dark:border-orange-500/20 flex gap-3 items-start">
-                                <span className="text-xl">💡</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5 text-[#FF5500] flex-shrink-0 mt-0.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                                </svg>
                                 <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
-                                    <strong>Pro Tip:</strong> If you are in between sizes, we recommend sizing up for a more comfortable fit, especially for running shoes.
+                                    <strong>{pick("Tips:", "Pro Tip:")}</strong>{" "}
+                                    {pick(
+                                        "Jika ukuran kakimu berada di antara dua ukuran, kami sarankan naik 0,5 ukuran agar lebih nyaman, terutama untuk sepatu lari.",
+                                        "If you are in between sizes, we recommend sizing up for a more comfortable fit, especially for running shoes."
+                                    )}
                                 </p>
                             </div>
                         </div>

@@ -1,22 +1,39 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../lib/api";
 import {
     hasActiveDiscount,
     getEffectivePrice,
     getDiscountPercentage,
+    formatRupiahShort,
 } from "../lib/pricing";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { useLanguage } from "../Context/LanguageContext";
+
+const normalizeName = (name) =>
+    typeof name === "string" ? name.trim().toLowerCase().replace(/\s+/g, " ") : "";
 
 export default function Search() {
     const location = useLocation();
     const navigate = useNavigate();
-    const keyword = location.state?.keyword || "";
+    const { pick, t } = useLanguage();
+    const [searchParams, setSearchParams] = useSearchParams();
 
+    const keyword = (
+        searchParams.get("q") ||
+        location.state?.keyword ||
+        ""
+    ).trim();
+
+    const [inputValue, setInputValue] = useState(keyword);
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all");
+
+    useEffect(() => {
+        setInputValue(keyword);
+    }, [keyword]);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -47,13 +64,11 @@ export default function Search() {
                         )
                         .map((p) => ({ ...p, productType: type }));
 
-                const allResults = [
-                    ...filterProducts(sneakersRes.data || [], "sneakers"),
-                    ...filterProducts(apparelRes.data || [], "apparel"),
-                    ...filterProducts(saleRes.data || [], "sale_products"),
-                ];
+                const sneakersMatches = filterProducts(sneakersRes.data || [], "sneakers");
+                const apparelMatches = filterProducts(apparelRes.data || [], "apparel");
+                const saleMatches = filterProducts(saleRes.data || [], "sale_products");
 
-                setResults(allResults);
+                setResults([...sneakersMatches, ...apparelMatches, ...saleMatches]);
             } catch (error) {
                 console.error("Search error:", error);
                 setResults([]);
@@ -65,61 +80,112 @@ export default function Search() {
         fetchResults();
     }, [keyword]);
 
+    // Deduplicate overlapping sale items on the "All" tab while preserving each specific tab
+    const deduplicatedAll = useMemo(() => {
+        const seenNames = new Set();
+        const unique = [];
+        for (const item of results) {
+            const key = normalizeName(item.name);
+            if (key && seenNames.has(key)) continue;
+            if (key) seenNames.add(key);
+            unique.push(item);
+        }
+        return unique;
+    }, [results]);
+
     const filteredResults =
         activeFilter === "all"
-            ? results
+            ? deduplicatedAll
             : results.filter((r) => r.productType === activeFilter);
 
-    const getCounts = () => ({
-        all: results.length,
+    const counts = {
+        all: deduplicatedAll.length,
         sneakers: results.filter((r) => r.productType === "sneakers").length,
         apparel: results.filter((r) => r.productType === "apparel").length,
-        sale_products: results.filter((r) => r.productType === "sale_products")
-            .length,
-    });
+        sale_products: results.filter((r) => r.productType === "sale_products").length,
+    };
 
-    const counts = getCounts();
+    const handleSubmitSearch = (e) => {
+        e.preventDefault();
+        const trimmed = inputValue.trim();
+        if (trimmed) {
+            setSearchParams({ q: trimmed });
+            setActiveFilter("all");
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-950 font-poppins transition-colors duration-300">
             <Navbar />
 
-            <main className="pt-32 pb-20 max-w-7xl mx-auto px-4 md:px-8">
-                {/* Header */}
-                <div className="mb-10">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-2">
-                        Search results for
-                    </p>
-                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                        "{keyword}"
-                    </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                        {results.length} products found
-                    </p>
+            <main className="pt-28 md:pt-32 pb-24 max-w-7xl mx-auto px-4 md:px-8">
+                {/* Header + Inline Refine Search */}
+                <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">
+                            {keyword
+                                ? pick("Hasil pencarian untuk", "Search results for")
+                                : pick("Cari di TrueKicks", "Search TrueKicks")}
+                        </p>
+                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                            {keyword ? `"${keyword}"` : pick("Temukan Pilihanmu", "Find Your Pair")}
+                        </h1>
+                        {keyword && !isLoading && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
+                                {counts.all}{" "}
+                                {pick(
+                                    "produk ditemukan",
+                                    counts.all === 1 ? "product found" : "products found"
+                                )}
+                            </p>
+                        )}
+                    </div>
+
+                    <form onSubmit={handleSubmitSearch} className="w-full md:w-80">
+                        <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full px-4 py-2 shadow-sm focus-within:border-gray-900 dark:focus-within:border-[#FF5500] transition-colors">
+                            <input
+                                type="text"
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder={t("search.placeholder")}
+                                aria-label={t("search.placeholder")}
+                                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none"
+                            />
+                            <button
+                                type="submit"
+                                className="px-3.5 py-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500] text-white text-xs font-bold hover:opacity-90 transition-opacity"
+                            >
+                                {pick("Cari", "Search")}
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
                 {/* Filter Tabs */}
                 <div className="flex flex-wrap gap-2 mb-8">
                     {[
-                        { key: "all", label: "All" },
-                        { key: "sneakers", label: "Sneakers" },
-                        { key: "apparel", label: "Apparel" },
-                        { key: "sale_products", label: "Sale" },
+                        { key: "all", label: t("common.all") },
+                        { key: "sneakers", label: t("nav.sneakers") },
+                        { key: "apparel", label: t("nav.apparel") },
+                        { key: "sale_products", label: t("nav.sale") },
                     ].map((tab) => (
                         <button
                             key={tab.key}
+                            type="button"
                             onClick={() => setActiveFilter(tab.key)}
-                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeFilter === tab.key
-                                ? "bg-gray-900 dark:bg-[#FF5500] text-white"
-                                : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                                }`}
+                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                                activeFilter === tab.key
+                                    ? "bg-gray-900 dark:bg-[#FF5500] text-white"
+                                    : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                            }`}
                         >
                             {tab.label}
                             <span
-                                className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${activeFilter === tab.key
-                                    ? "bg-white/20 text-white"
-                                    : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                                    }`}
+                                className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                                    activeFilter === tab.key
+                                        ? "bg-white/20 text-white"
+                                        : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                                }`}
                             >
                                 {counts[tab.key]}
                             </span>
@@ -163,18 +229,25 @@ export default function Search() {
                             </svg>
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                            No products found
+                            {t("search.noProductsFound")}
                         </h2>
                         <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
-                            We couldn't find any products matching "{keyword}". Try searching
-                            for something else or browse our collections.
+                            {keyword
+                                ? pick(
+                                      `Tidak ditemukan produk untuk "${keyword}". Coba kata kunci lain atau jelajahi koleksi kami.`,
+                                      `We couldn't find any products matching "${keyword}". Try another keyword or browse our collections.`
+                                  )
+                                : pick(
+                                      "Ketik nama produk, merek, atau kategori di atas untuk mulai mencari.",
+                                      "Type a product name, brand, or category above to start searching."
+                                  )}
                         </p>
                         <button
+                            type="button"
                             onClick={() => navigate("/sneakers")}
-                            className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full font-semibold 
-                         hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                            className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                         >
-                            Browse All Products
+                            {pick("Jelajahi Semua Produk", "Browse All Products")}
                         </button>
                     </div>
                 )}
@@ -188,23 +261,24 @@ export default function Search() {
                                 onClick={() =>
                                     navigate(`/product/${item.productType}/${item.id}`)
                                 }
-                                className="group bg-white dark:bg-gray-900 rounded-3xl p-4 cursor-pointer 
-                           hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 transition-all duration-300 
-                           border border-transparent dark:border-gray-800 hover:border-gray-100 dark:hover:border-gray-700"
+                                className="group bg-white dark:bg-gray-900 rounded-3xl p-4 cursor-pointer hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 transition-all duration-300 border border-transparent dark:border-gray-800 hover:border-gray-100 dark:hover:border-gray-700"
                             >
-                                {/* Product Type Badge */}
+                                {/* Product Type & Sale Badges */}
                                 <div className="flex justify-between items-center mb-2">
                                     <span
-                                        className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${item.productType === "sneakers"
-                                            ? "bg-blue-100 text-blue-600"
-                                            : item.productType === "apparel"
-                                                ? "bg-green-100 text-green-600"
-                                                : "bg-red-100 text-red-600"
-                                            }`}
+                                        className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
+                                            item.productType === "sneakers"
+                                                ? "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300"
+                                                : item.productType === "apparel"
+                                                ? "bg-green-100 dark:bg-green-950/60 text-green-600 dark:text-green-300"
+                                                : "bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300"
+                                        }`}
                                     >
                                         {item.productType === "sale_products"
-                                            ? "Sale"
-                                            : item.productType}
+                                            ? t("nav.sale")
+                                            : item.productType === "apparel"
+                                            ? t("nav.apparel")
+                                            : t("nav.sneakers")}
                                     </span>
                                     {hasActiveDiscount(item) && (
                                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FF5500] text-white">
@@ -214,32 +288,25 @@ export default function Search() {
                                 </div>
 
                                 {/* Product Image */}
-                                <div
-                                    className="aspect-square bg-gray-50 dark:bg-gray-100 rounded-2xl flex items-center 
-                              justify-center p-4 mb-4 overflow-hidden"
-                                >
+                                <div className="aspect-square bg-gray-50 dark:bg-gray-100 rounded-2xl flex items-center justify-center p-4 mb-4 overflow-hidden">
                                     <img
                                         src={item.image_url}
                                         alt={item.name}
-                                        className="w-[85%] h-[85%] object-contain mix-blend-multiply 
-                               transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3"
+                                        className="w-[85%] h-[85%] object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3"
                                     />
                                 </div>
 
                                 {/* Product Info */}
-                                <h3
-                                    className="font-bold text-sm md:text-base text-gray-900 dark:text-white 
-                              line-clamp-2 mb-1 group-hover:text-[#FF5500] transition-colors"
-                                >
+                                <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-2 mb-1 group-hover:text-[#FF5500] transition-colors">
                                     {item.name}
                                 </h3>
                                 <div className="flex items-center gap-2">
                                     <p className="text-xs font-bold text-[#FF5500]">
-                                        Rp {(getEffectivePrice(item) / 1000).toLocaleString()}K
+                                        {formatRupiahShort(getEffectivePrice(item))}
                                     </p>
                                     {hasActiveDiscount(item) && (
                                         <p className="text-[11px] text-gray-400 line-through">
-                                            Rp {(Number(item.price) / 1000).toLocaleString()}K
+                                            {formatRupiahShort(item.price)}
                                         </p>
                                     )}
                                 </div>

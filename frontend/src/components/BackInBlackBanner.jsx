@@ -1,9 +1,11 @@
 import React from "react";
+import { useLanguage } from "../Context/LanguageContext";
 import adizero from "../assets/adizero.png";
 import asics2 from "../assets/asics-2.png";
 import backGround from "../assets/backGround.png";
 
 const BackInBlackBanner = ({ onScrollToProducts }) => {
+    const { pick } = useLanguage();
     return (
         <div
             className="relative rounded-2xl md:rounded-3xl p-8 md:p-16 mb-8 md:mb-12 overflow-hidden min-h-[280px] md:min-h-[380px] lg:min-h-[420px] group"
@@ -46,7 +48,7 @@ const BackInBlackBanner = ({ onScrollToProducts }) => {
                 {/* Brand Tag */}
                 <div className="animate-slide-down opacity-0" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
                     <span className="inline-block px-4 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-white text-xs md:text-sm font-bold tracking-[0.2em] uppercase mb-4 border border-white/20">
-                        ✦ TrueKicks Exclusive ✦
+                        {pick("Eksklusif TrueKicks", "TrueKicks Exclusive")}
                     </span>
                 </div>
 
@@ -61,7 +63,7 @@ const BackInBlackBanner = ({ onScrollToProducts }) => {
 
                 {/* Subtitle */}
                 <p className="text-gray-200 text-sm md:text-base lg:text-lg mb-6 max-w-lg font-light tracking-wide animate-slide-down opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
-                    Stealth mode activated. Premium black collection.
+                    {pick("Mode stealth aktif. Koleksi hitam premium.", "Stealth mode activated. Premium black collection.")}
                 </p>
 
                 {/* CTA Button - Enhanced */}
@@ -71,7 +73,7 @@ const BackInBlackBanner = ({ onScrollToProducts }) => {
                     style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
                 >
                     <span className="relative z-10 flex items-center gap-2">
-                        EXPLORE COLLECTION
+                        {pick("JELAJAHI KOLEKSI", "EXPLORE COLLECTION")}
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 transition-transform group-hover/btn:translate-x-1">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                         </svg>
@@ -83,7 +85,9 @@ const BackInBlackBanner = ({ onScrollToProducts }) => {
             {/* Decorative Elements */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 opacity-50">
                 <div className="w-8 h-[1px] bg-white/50"></div>
-                <span className="text-white/60 text-[10px] tracking-[0.3em] uppercase font-medium">Limited Edition</span>
+                <span className="text-white/60 text-[10px] tracking-[0.3em] uppercase font-medium">
+                    {pick("Edisi Terbatas", "Limited Edition")}
+                </span>
                 <div className="w-8 h-[1px] bg-white/50"></div>
             </div>
 
