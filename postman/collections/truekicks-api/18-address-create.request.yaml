@@ -1,0 +1,39 @@
+$kind: http-request
+name: 'Tier 3: Create Saved Shipping Address (POST)'
+method: POST
+url: '{{base_url}}/api/addresses'
+order: 18000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "label": "Office",
+      "full_name": "Postman Test User",
+      "phone": "081234567890",
+      "address": "Jl. Sudirman No. 10, Senayan",
+      "city": "Jakarta Selatan",
+      "postal_code": "12190",
+      "is_default": true
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/addresses returns 201', () => {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Saved address persisted to Supabase', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+        pm.expect(body.address).to.be.an('object');
+        pm.expect(body.address.id).to.exist;
+        pm.collectionVariables.set('created_address_id', String(body.address.id));
+      });

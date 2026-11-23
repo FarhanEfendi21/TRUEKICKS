@@ -1,0 +1,23 @@
+$kind: http-request
+name: 'Tier 1: Reject Repay On Already Paid Order (400)'
+method: POST
+url: '{{base_url}}/api/orders/{{created_order_id}}/pay'
+order: 36000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: '{}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Already paid order rejects re-initiate payment with 400', () => {
+        pm.response.to.have.status(400);
+      });

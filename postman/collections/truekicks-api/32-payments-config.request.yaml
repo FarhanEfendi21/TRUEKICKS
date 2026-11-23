@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Tier 1: Get Payment Gateway Public Config (GET)'
+method: GET
+url: '{{base_url}}/api/payments/config'
+order: 32000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/payments/config returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns Midtrans provider metadata and supported channels', () => {
+        const body = pm.response.json();
+        pm.expect(body.provider).to.eql('midtrans');
+        pm.expect(body.supported_methods).to.include('qris');
+        pm.expect(body.supported_methods).to.include('bca_va');
+      });

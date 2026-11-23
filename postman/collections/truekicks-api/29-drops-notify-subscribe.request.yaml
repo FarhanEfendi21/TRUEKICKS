@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Tier 2: Subscribe Drop Notify Me Reminder (POST)'
+method: POST
+url: '{{base_url}}/api/drops/{{upcoming_drop_id}}/notify'
+order: 29000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "postman.drop.test@truekicks.local"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/drops/:id/notify returns 200 or 201', () => {
+        pm.expect([200, 201]).to.include(pm.response.code);
+      });
+      pm.test('Drop reminder is confirmed active', () => {
+        const body = pm.response.json();
+        pm.expect(body.notified).to.eql(true);
+        pm.expect(body.reminder_count).to.be.at.least(1);
+      });

@@ -1,0 +1,32 @@
+$kind: http-request
+name: 'Concierge: Active Sale Deals Query (200)'
+method: POST
+url: '{{base_url}}/api/concierge/chat'
+order: 23000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "message": "produk yang sedang diskon sekarang",
+      "context": {
+        "currentPath": "/home"
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Concierge sale query returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('All recommended sale items carry real synced discounts', () => {
+        const body = pm.response.json();
+        pm.expect(body.products).to.be.an('array').and.not.be.empty;
+        body.products.forEach((p) => {
+          pm.expect(Number(p.discount_price)).to.be.below(Number(p.price));
+          pm.expect(Number(p.discount_percentage)).to.be.above(0);
+        });
+      });

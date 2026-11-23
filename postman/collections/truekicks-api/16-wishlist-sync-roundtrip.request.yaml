@@ -1,0 +1,42 @@
+$kind: http-request
+name: 'Tier 3: Cloud Wishlist Sync Write (PUT)'
+method: PUT
+url: '{{base_url}}/api/wishlist'
+order: 16000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        {
+          "id": 1,
+          "productType": "sneakers",
+          "name": "Postman Test Sneaker",
+          "price": 2500000,
+          "discount_price": 1790000,
+          "discount_percentage": 28,
+          "category": "Sneakers",
+          "image": "https://example.com/shoe.png"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('PUT /api/wishlist returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cloud wishlist synced to Supabase with 1 item', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+        pm.expect(body.items).to.have.lengthOf(1);
+      });

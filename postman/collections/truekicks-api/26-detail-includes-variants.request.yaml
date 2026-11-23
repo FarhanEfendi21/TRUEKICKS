@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Tier 1: Product Detail Includes Variant Stock (GET)'
+method: GET
+url: '{{base_url}}/api/detail/sneakers/1'
+order: 26000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/detail/sneakers/1 returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Product detail payload embeds variants and stock_tracked flag', () => {
+        const body = pm.response.json();
+        pm.expect(body.stock_tracked).to.be.a('boolean');
+        pm.expect(body.variants).to.be.an('array').that.is.not.empty;
+      });

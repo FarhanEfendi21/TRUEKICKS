@@ -1,0 +1,25 @@
+$kind: http-request
+name: 'Tier 3: Authenticity Verifies Valid Certificate (No PII)'
+method: GET
+url: '{{base_url}}/api/authenticity/{{sample_auth_code}}'
+order: 10000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Valid authenticity code returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Certificate is valid and contains items', () => {
+        const body = pm.response.json();
+        pm.expect(body.valid).to.eql(true);
+        pm.expect(body.certificate).to.be.an('object');
+        pm.expect(body.certificate.code).to.eql(pm.variables.get('sample_auth_code'));
+        pm.expect(body.certificate.items).to.be.an('array').and.not.be.empty;
+      });
+      pm.test('Certificate never leaks private PII (address, phone, email)', () => {
+        const cert = pm.response.json().certificate;
+        pm.expect(cert).to.not.have.property('address');
+        pm.expect(cert).to.not.have.property('phone');
+        pm.expect(cert).to.not.have.property('email');
+      });

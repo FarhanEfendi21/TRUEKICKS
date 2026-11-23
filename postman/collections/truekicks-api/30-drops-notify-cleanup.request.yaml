@@ -1,0 +1,16 @@
+$kind: http-request
+name: 'Tier 2: Cleanup Drop Notify Me Reminder (DELETE)'
+method: DELETE
+url: '{{base_url}}/api/drops/{{upcoming_drop_id}}/notify?email=postman.drop.test@truekicks.local'
+order: 30000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('DELETE /api/drops/:id/notify returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Drop reminder is removed cleanly', () => {
+        const body = pm.response.json();
+        pm.expect(body.notified).to.eql(false);
+      });

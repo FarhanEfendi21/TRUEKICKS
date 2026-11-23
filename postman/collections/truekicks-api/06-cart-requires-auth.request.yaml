@@ -1,0 +1,14 @@
+$kind: http-request
+name: 'Tier 3: Cart Requires Auth (401)'
+method: GET
+url: '{{base_url}}/api/cart'
+order: 6000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Unauthenticated GET /api/cart returns 401', () => {
+        pm.response.to.have.status(401);
+      });

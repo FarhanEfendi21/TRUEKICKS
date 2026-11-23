@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Tier 1: Reject Payment Webhook With Invalid Signature (403)'
+method: POST
+url: '{{base_url}}/api/payments/webhook'
+order: 33000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "order_id": "{{created_gateway_order_id}}",
+      "status_code": "200",
+      "gross_amount": "{{created_gross_amount}}",
+      "transaction_status": "settlement",
+      "payment_type": "qris",
+      "signature_key": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Tampered SHA-512 webhook signature is rejected with 403', () => {
+        pm.response.to.have.status(403);
+      });

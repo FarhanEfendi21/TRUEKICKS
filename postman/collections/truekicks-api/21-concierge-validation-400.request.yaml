@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Concierge: Empty Message Validation (400)'
+method: POST
+url: '{{base_url}}/api/concierge/chat'
+order: 21000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "message": "   "
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Empty message is rejected with 400', () => {
+        pm.response.to.have.status(400);
+      });

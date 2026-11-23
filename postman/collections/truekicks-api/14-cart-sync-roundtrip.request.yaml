@@ -1,0 +1,42 @@
+$kind: http-request
+name: 'Tier 3: Cloud Cart Sync Write (PUT)'
+method: PUT
+url: '{{base_url}}/api/cart'
+order: 14000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        {
+          "id": 1,
+          "productType": "sneakers",
+          "name": "Postman Test Sneaker",
+          "price": 1790000,
+          "image": "https://example.com/shoe.png",
+          "size": "42",
+          "quantity": 2
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('PUT /api/cart returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cloud cart synced to Supabase with 1 item', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+        pm.expect(body.items).to.have.lengthOf(1);
+        pm.expect(body.items[0].quantity).to.eql(2);
+      });

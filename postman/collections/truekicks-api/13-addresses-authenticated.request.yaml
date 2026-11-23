@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Tier 3: Authenticated Saved Addresses Fetch'
+method: GET
+url: '{{base_url}}/api/addresses'
+order: 13000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Authenticated GET /api/addresses returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns addresses array and synced status', () => {
+        const body = pm.response.json();
+        pm.expect(body.addresses).to.be.an('array');
+        pm.expect(body.synced).to.be.a('boolean');
+      });

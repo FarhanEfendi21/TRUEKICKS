@@ -1,0 +1,31 @@
+$kind: http-request
+name: 'Tier 3: Cloud Wishlist Cleanup (PUT empty)'
+method: PUT
+url: '{{base_url}}/api/wishlist'
+order: 17000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "items": []
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Cleanup PUT /api/wishlist returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cloud wishlist is empty after cleanup', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+        pm.expect(body.items).to.be.an('array').and.be.empty;
+      });

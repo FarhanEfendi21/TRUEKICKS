@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Tier 3: Authenticated Cloud Wishlist Fetch'
+method: GET
+url: '{{base_url}}/api/wishlist'
+order: 12000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Authenticated GET /api/wishlist returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns items array and synced status', () => {
+        const body = pm.response.json();
+        pm.expect(body.items).to.be.an('array');
+        pm.expect(body.synced).to.be.a('boolean');
+      });

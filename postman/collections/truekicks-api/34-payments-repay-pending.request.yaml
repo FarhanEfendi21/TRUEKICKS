@@ -1,0 +1,29 @@
+$kind: http-request
+name: 'Tier 1: Re-initiate Payment For Pending Order (POST)'
+method: POST
+url: '{{base_url}}/api/orders/{{created_order_id}}/pay'
+order: 34000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: '{}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/orders/:id/pay returns 200 for Pending Payment order', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns fresh Snap payment token and gateway_order_id', () => {
+        const body = pm.response.json();
+        pm.expect(body.payment.token).to.be.a('string').and.not.empty;
+        pm.expect(body.payment.gateway_order_id).to.be.a('string').and.not.empty;
+        pm.environment.set('created_gateway_order_id', String(body.payment.gateway_order_id));
+      });

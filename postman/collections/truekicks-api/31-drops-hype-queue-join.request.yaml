@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Tier 2: Join Live Drop Hype Queue Room (POST)'
+method: POST
+url: '{{base_url}}/api/drops/{{live_drop_id}}/queue/join'
+order: 31000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: '{}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/drops/:id/queue/join returns 201 Created', () => {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Queue ticket contains valid code and reservation window', () => {
+        const body = pm.response.json();
+        pm.expect(body.ok).to.eql(true);
+        pm.expect(body.ticket.ticket_code).to.match(/^TK-Q-[A-F0-9]{6}$/);
+        pm.expect(body.ticket.reservation_window_seconds).to.eql(180);
+      });

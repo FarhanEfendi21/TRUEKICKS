@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Tier 3: Cloud Cart Clear (DELETE)'
+method: DELETE
+url: '{{base_url}}/api/cart'
+order: 15000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('DELETE /api/cart returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cloud cart cleared cleanly', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+        pm.expect(body.items).to.be.an('array').and.be.empty;
+      });

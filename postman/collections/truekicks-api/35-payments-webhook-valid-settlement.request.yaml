@@ -1,0 +1,41 @@
+$kind: http-request
+name: 'Tier 1: Process Valid SHA-512 Settlement Webhook (POST)'
+method: POST
+url: '{{base_url}}/api/payments/webhook'
+order: 35000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "order_id": "{{created_gateway_order_id}}",
+      "status_code": "200",
+      "gross_amount": "{{created_gross_amount}}",
+      "transaction_status": "settlement",
+      "fraud_status": "accept",
+      "payment_type": "qris",
+      "signature_key": "{{valid_webhook_sig}}"
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const orderId = pm.environment.get('created_gateway_order_id');
+      const grossAmount = pm.environment.get('created_gross_amount');
+      const secret = pm.environment.get('webhook_secret');
+      const sig = CryptoJS.SHA512(`${orderId}200${grossAmount}${secret}`).toString();
+      pm.environment.set('valid_webhook_sig', sig);
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Valid signed settlement webhook returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Order transitions to Paid with payment_status paid', () => {
+        const body = pm.response.json();
+        pm.expect(body.received).to.eql(true);
+        pm.expect(body.status).to.eql('Paid');
+        pm.expect(body.payment_status).to.eql('paid');
+      });

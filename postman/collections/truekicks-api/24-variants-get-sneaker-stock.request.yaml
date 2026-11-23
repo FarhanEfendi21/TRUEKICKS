@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Tier 1: Get Sneaker Variant Stock per Size (GET)'
+method: GET
+url: '{{base_url}}/api/variants/sneakers/1'
+order: 24000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/variants/sneakers/1 returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Response includes structured variants array and canonical target', () => {
+        const body = pm.response.json();
+        pm.expect(body.tracked).to.be.a('boolean');
+        pm.expect(body.canonical_type).to.eql('sneakers');
+        pm.expect(body.canonical_id).to.eql(1);
+        pm.expect(body.variants).to.be.an('array').that.is.not.empty;
+        pm.expect(body.variants[0]).to.have.property('size');
+        pm.expect(['in_stock', 'low_stock', 'out_of_stock', 'untracked']).to.include(body.variants[0].status);
+      });

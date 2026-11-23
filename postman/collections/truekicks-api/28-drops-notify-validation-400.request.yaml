@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Tier 2: Reject Drop Notify Without Email (400)'
+method: POST
+url: '{{base_url}}/api/drops/{{upcoming_drop_id}}/notify'
+order: 28000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: '{}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Unauthenticated notify without email returns 400', () => {
+        pm.response.to.have.status(400);
+      });

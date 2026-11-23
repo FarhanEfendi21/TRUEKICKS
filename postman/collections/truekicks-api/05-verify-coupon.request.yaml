@@ -1,0 +1,28 @@
+$kind: http-request
+name: Verify Promo Coupon
+method: POST
+url: '{{base_url}}/api/coupons/verify'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "code": "WELCOME10",
+      "totalAmount": 1500000
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Coupon verification returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns discount metadata for WELCOME10', () => {
+        const body = pm.response.json();
+        pm.expect(body.code).to.eql('WELCOME10');
+        pm.expect(body.discount_type).to.be.oneOf(['percent', 'fixed']);
+        pm.expect(Number(body.discount_value)).to.be.above(0);
+      });

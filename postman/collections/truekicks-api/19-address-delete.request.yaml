@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Tier 3: Delete Saved Shipping Address (DELETE)'
+method: DELETE
+url: '{{base_url}}/api/addresses/{{created_address_id}}'
+order: 19000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('DELETE /api/addresses/:id returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Saved address deleted cleanly from Supabase', () => {
+        const body = pm.response.json();
+        pm.expect(body.synced).to.eql(true);
+      });

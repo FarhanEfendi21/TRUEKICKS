@@ -1,0 +1,25 @@
+$kind: http-request
+name: Get Sneakers Catalog
+method: GET
+url: '{{base_url}}/api/sneakers'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status code is 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns non-empty sneakers array with valid prices', () => {
+        const data = pm.response.json();
+        pm.expect(data).to.be.an('array').and.not.be.empty;
+        pm.expect(data[0]).to.have.property('name');
+        pm.expect(Number(data[0].price)).to.be.above(0);
+      });
+      pm.test('Synced sale items have discount_price lower than original price', () => {
+        const data = pm.response.json();
+        const discounted = data.filter((item) => item.discount_price != null);
+        discounted.forEach((item) => {
+          pm.expect(Number(item.discount_price)).to.be.below(Number(item.price));
+        });
+      });

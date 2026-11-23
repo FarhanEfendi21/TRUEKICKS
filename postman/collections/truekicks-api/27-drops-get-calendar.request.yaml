@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Tier 2: Get Drop Calendar & Flash Sale Schedule (GET)'
+method: GET
+url: '{{base_url}}/api/drops'
+order: 27000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/drops returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Response includes non-empty drops schedule and counts', () => {
+        const body = pm.response.json();
+        pm.expect(body.drops).to.be.an('array').that.is.not.empty;
+        pm.expect(body.counts).to.have.property('all');
+        pm.expect(body.drops[0]).to.have.property('release_at');
+        pm.expect(body.drops[0]).to.have.property('release_price');
+
+        const upcoming = body.drops.find((d) => d.status === 'upcoming') || body.drops[0];
+        const live = body.drops.find((d) => d.status === 'live') || body.drops[0];
+        pm.environment.set('upcoming_drop_id', String(upcoming.id));
+        pm.environment.set('live_drop_id', String(live.id));
+      });

@@ -1,0 +1,16 @@
+$kind: http-request
+name: 'Tier 3: Authenticity Rejects Fake Code (404)'
+method: GET
+url: '{{base_url}}/api/authenticity/TK-AUTH-00001-DEADBEEF'
+order: 9000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Tampered authenticity code returns 404', () => {
+        pm.response.to.have.status(404);
+      });
+      pm.test('Response sets valid to false', () => {
+        const body = pm.response.json();
+        pm.expect(body.valid).to.eql(false);
+      });

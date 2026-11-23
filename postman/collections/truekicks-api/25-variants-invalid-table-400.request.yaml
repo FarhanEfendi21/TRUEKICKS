@@ -1,0 +1,12 @@
+$kind: http-request
+name: 'Tier 1: Reject Invalid Table on Variants Route (400)'
+method: GET
+url: '{{base_url}}/api/variants/users/1'
+order: 25000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Disallowed table is rejected with 400', () => {
+        pm.response.to.have.status(400);
+      });

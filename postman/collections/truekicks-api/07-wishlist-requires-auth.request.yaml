@@ -1,0 +1,14 @@
+$kind: http-request
+name: 'Tier 3: Wishlist Requires Auth (401)'
+method: GET
+url: '{{base_url}}/api/wishlist'
+order: 7000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Unauthenticated GET /api/wishlist returns 401', () => {
+        pm.response.to.have.status(401);
+      });

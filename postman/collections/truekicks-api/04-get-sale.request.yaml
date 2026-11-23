@@ -1,0 +1,20 @@
+$kind: http-request
+name: Get Active Sale Products
+method: GET
+url: '{{base_url}}/api/sale'
+order: 4000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status code is 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('All sale items have valid discount_price < price', () => {
+        const data = pm.response.json();
+        pm.expect(data).to.be.an('array').and.not.be.empty;
+        data.forEach((item) => {
+          pm.expect(Number(item.discount_price)).to.be.above(0);
+          pm.expect(Number(item.discount_price)).to.be.below(Number(item.price));
+        });
+      });

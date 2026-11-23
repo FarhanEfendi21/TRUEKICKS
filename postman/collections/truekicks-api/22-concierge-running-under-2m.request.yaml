@@ -1,0 +1,35 @@
+$kind: http-request
+name: 'Concierge: Natural Language Budget Query (200)'
+method: POST
+url: '{{base_url}}/api/concierge/chat'
+order: 22000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "message": "sepatu running hitam di bawah 2 juta",
+      "context": {
+        "currentPath": "/sneakers"
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Concierge budget query returns 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns reply, valid mode, and grounded products <= 2000000', () => {
+        const body = pm.response.json();
+        pm.expect(body.reply).to.be.a('string').and.not.be.empty;
+        pm.expect(body.mode).to.be.oneOf(['llm', 'fallback']);
+        pm.expect(body.products).to.be.an('array').and.not.be.empty;
+        body.products.forEach((p) => {
+          pm.expect(p.id).to.exist;
+          pm.expect(p.productType).to.be.oneOf(['sneakers', 'apparel', 'sale_products']);
+          pm.expect(Number(p.effective_price)).to.be.at.most(2000000);
+        });
+      });

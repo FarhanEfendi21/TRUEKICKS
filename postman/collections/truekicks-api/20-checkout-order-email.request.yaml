@@ -1,0 +1,57 @@
+$kind: http-request
+name: 'Tier 3: Checkout Order & Resend Email (POST)'
+method: POST
+url: '{{base_url}}/api/orders'
+order: 20000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "full_name": "Farhan Efendi",
+      "address": "Jl. Postman Automated Test No. 1",
+      "city": "Jakarta Selatan",
+      "postal_code": "12190",
+      "phone": "081234567890",
+      "items": [
+        {
+          "id": 1,
+          "productType": "sneakers",
+          "name": "Adidas Adizero Evo SL Black White",
+          "size": "42",
+          "quantity": 1
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/orders returns 201 Created', () => {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Order includes tracking_number and authenticity_code', () => {
+        const body = pm.response.json();
+        pm.expect(body.tracking_number).to.match(/^TKX-\d{8}-/);
+        pm.expect(body.authenticity_code).to.match(/^TK-AUTH-/);
+      });
+      pm.test('Resend confirmation email delivered (email_sent is true)', () => {
+        const body = pm.response.json();
+        pm.expect(body.email_sent).to.eql(true);
+      });
+      pm.test('Order starts in Pending Payment with Snap session token', () => {
+        const body = pm.response.json();
+        pm.expect(body.order[0].status).to.eql('Pending Payment');
+        pm.expect(body.payment).to.be.an('object');
+        pm.expect(body.payment.token).to.be.a('string').and.not.empty;
+        pm.environment.set('created_order_id', String(body.order[0].id));
+        pm.environment.set('created_gateway_order_id', String(body.payment.gateway_order_id || body.order[0].id));
+        pm.environment.set('created_gross_amount', `${Math.round(Number(body.pricing.total_price))}.00`);
+      });

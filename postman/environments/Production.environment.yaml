@@ -1,0 +1,17 @@
+name: Production
+values:
+  - key: base_url
+    value: 'https://truekicks-t2dw.vercel.app'
+    enabled: true
+    type: default
+    description: Deployed TrueKicks Vercel backend
+  - key: sample_auth_code
+    value: 'TK-AUTH-B4F8C1CA-EF8AF0B8'
+    enabled: true
+    type: default
+    description: Verified authenticity code for live test order
+  - key: auth_token
+    value: ''
+    enabled: true
+    type: secret
+    description: Runtime JWT bearer token supplied via --env-var

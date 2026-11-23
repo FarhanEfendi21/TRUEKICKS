@@ -1,0 +1,14 @@
+$kind: http-request
+name: 'Tier 3: Addresses Requires Auth (401)'
+method: GET
+url: '{{base_url}}/api/addresses'
+order: 8000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Unauthenticated GET /api/addresses returns 401', () => {
+        pm.response.to.have.status(401);
+      });
