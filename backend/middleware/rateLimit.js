@@ -34,4 +34,16 @@ export const passwordResetLimiter = rateLimit({
     }
 });
 
-export default { apiLimiter, authLimiter, passwordResetLimiter };
+// AI Sneaker Concierge limiter (protects LLM quota & prevents abuse)
+export const conciergeLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 15, // Max 15 chat turns per minute per IP
+    message: {
+        message: 'Terlalu banyak permintaan ke Kixo. Tunggu sebentar lalu coba lagi.',
+        retryAfter: '1 minute'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+export default { apiLimiter, authLimiter, passwordResetLimiter, conciergeLimiter };

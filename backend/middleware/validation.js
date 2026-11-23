@@ -98,6 +98,107 @@ export const reviewValidation = [
         .isLength({ min: 1, max: 1000 }).withMessage('Comment must be between 1-1000 characters')
 ];
 
+// Validation rules for cloud cart sync
+export const cartSyncValidation = [
+    body('items')
+        .isArray({ max: 100 }).withMessage('Cart items must be an array (max 100 items)'),
+    body('items.*.id')
+        .notEmpty().withMessage('Each cart item must have a product ID'),
+    body('items.*.name')
+        .trim()
+        .notEmpty().withMessage('Each cart item must have a name')
+        .isLength({ max: 250 }).withMessage('Product name is too long'),
+    body('items.*.size')
+        .trim()
+        .notEmpty().withMessage('Each cart item must have a size')
+        .isLength({ max: 30 }).withMessage('Size value is too long'),
+    body('items.*.quantity')
+        .isInt({ min: 1, max: 100 }).withMessage('Quantity must be between 1 and 100'),
+    body('items.*.productType')
+        .optional()
+        .isIn(ALLOWED_PRODUCT_TYPES).withMessage('Invalid product type')
+];
+
+// Validation rules for cloud wishlist sync
+export const wishlistSyncValidation = [
+    body('items')
+        .isArray({ max: 200 }).withMessage('Wishlist items must be an array (max 200 items)'),
+    body('items.*.id')
+        .notEmpty().withMessage('Each wishlist item must have a product ID'),
+    body('items.*.name')
+        .trim()
+        .notEmpty().withMessage('Each wishlist item must have a name')
+        .isLength({ max: 250 }).withMessage('Product name is too long'),
+    body('items.*.productType')
+        .optional()
+        .isIn(ALLOWED_PRODUCT_TYPES).withMessage('Invalid product type')
+];
+
+// Validation rules for saved shipping addresses
+export const addressValidation = [
+    body('label')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 40 }).withMessage('Label must be 1-40 characters'),
+    body('full_name')
+        .trim()
+        .notEmpty().withMessage('Recipient name is required')
+        .isLength({ min: 2, max: 120 }).withMessage('Recipient name must be 2-120 characters'),
+    body('phone')
+        .trim()
+        .notEmpty().withMessage('Phone number is required')
+        .isLength({ min: 6, max: 25 }).withMessage('Phone number must be 6-25 characters'),
+    body('address')
+        .trim()
+        .notEmpty().withMessage('Address is required')
+        .isLength({ min: 5, max: 500 }).withMessage('Address must be 5-500 characters'),
+    body('city')
+        .trim()
+        .notEmpty().withMessage('City is required')
+        .isLength({ min: 2, max: 100 }).withMessage('City must be 2-100 characters'),
+    body('postal_code')
+        .trim()
+        .notEmpty().withMessage('Postal code is required')
+        .isLength({ min: 3, max: 20 }).withMessage('Postal code must be 3-20 characters'),
+    body('is_default')
+        .optional()
+        .isBoolean().withMessage('is_default must be a boolean')
+];
+
+// Validation rules for AI Sneaker Concierge chat
+export const conciergeValidation = [
+    body('message')
+        .trim()
+        .notEmpty().withMessage('Message is required')
+        .isLength({ min: 1, max: 500 }).withMessage('Message must be between 1-500 characters'),
+    body('history')
+        .optional()
+        .isArray({ max: 8 }).withMessage('History must be an array with at most 8 messages'),
+    body('history.*.role')
+        .optional()
+        .isIn(['user', 'assistant']).withMessage('History role must be user or assistant'),
+    body('history.*.content')
+        .optional()
+        .isString().withMessage('History content must be a string')
+        .isLength({ max: 600 }).withMessage('History content is too long'),
+    body('context.currentPath')
+        .optional()
+        .isString().withMessage('currentPath must be a string')
+        .isLength({ max: 120 }).withMessage('currentPath is too long'),
+    body('context.language')
+        .optional()
+        .isIn(['id', 'en']).withMessage('language must be id or en')
+];
+
+// Validation rules for Drop Calendar Notify Me reminder
+export const dropNotifyValidation = [
+    body('email')
+        .optional({ values: 'falsy' })
+        .trim()
+        .isEmail().withMessage('Please enter a valid email address')
+        .normalizeEmail()
+];
+
 // Middleware to check validation results
 export const validate = (req, res, next) => {
     const errors = validationResult(req);
@@ -119,5 +220,10 @@ export default {
     orderValidation,
     updateProfileValidation,
     reviewValidation,
+    cartSyncValidation,
+    wishlistSyncValidation,
+    addressValidation,
+    conciergeValidation,
+    dropNotifyValidation,
     validate
 };

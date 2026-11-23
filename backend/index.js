@@ -7,16 +7,53 @@ import supabase from "./config/supabase.js";
 import bcrypt from "bcryptjs";
 
 // Security Middleware
-import { generateToken, authMiddleware } from "./middleware/auth.js";
+import { generateToken, authMiddleware, optionalAuth } from "./middleware/auth.js";
 import {
   registerValidation,
   loginValidation,
   orderValidation,
   updateProfileValidation,
   reviewValidation,
+  cartSyncValidation,
+  wishlistSyncValidation,
+  addressValidation,
+  conciergeValidation,
+  dropNotifyValidation,
   validate,
 } from "./middleware/validation.js";
-import { authLimiter, apiLimiter } from "./middleware/rateLimit.js";
+import { authLimiter, apiLimiter, conciergeLimiter } from "./middleware/rateLimit.js";
+import { askConcierge } from "./services/conciergeService.js";
+import {
+  enrichOrder,
+  generateAuthenticityCode,
+  generateTrackingNumber,
+  parseAuthenticityCode,
+  verifyAuthenticityForOrder,
+  maskBuyerName,
+} from "./services/authenticity.js";
+import { sendOrderConfirmationEmail } from "./services/emailService.js";
+import {
+  getProductVariants,
+  enrichCartItemsWithStock,
+  deductStockAtomic,
+  restoreStockAtomic,
+} from "./services/inventoryService.js";
+import {
+  listDrops,
+  subscribeDropReminder,
+  unsubscribeDropReminder,
+  joinHypeQueue,
+} from "./services/dropsService.js";
+import {
+  getPublicPaymentConfig,
+  createSnapTransaction,
+  fetchMidtransTransactionStatus,
+  processPaymentNotification,
+  computeMidtransSignature,
+  getWebhookSigningSecret,
+  isMidtransLiveConfigured,
+  isMidtransProduction,
+} from "./services/paymentService.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,6 +108,21 @@ app.use(cookieParser()); // Parse Cookie header
 app.use("/api", apiLimiter); // General rate limiting for all API routes (single registration)
 
 // === SERVER-SIDE HELPERS (PRICE, SALE SYNC & COUPON VERIFICATION) ===
+const isMissingSchemaError = (error) => {
+  if (!error) return false;
+  const code = String(error.code || "");
+  const msg = String(error.message || "").toLowerCase();
+  return (
+    code === "PGRST205" ||
+    code === "PGRST204" ||
+    code === "42P01" ||
+    code === "42703" ||
+    msg.includes("could not find the table") ||
+    msg.includes("could not find the") ||
+    msg.includes("does not exist")
+  );
+};
+
 const normalizeProductName = (name) =>
   typeof name === "string" ? name.trim().toLowerCase().replace(/\s+/g, " ") : "";
 
@@ -466,7 +518,7 @@ app.put("/api/users/:id", authMiddleware, updateProfileValidation, validate, asy
   }
 });
 
-// === 7. ROUTE DETAIL PRODUK (DINAMIS) ===
+// === 7. ROUTE DETAIL PRODUK (DINAMIS + REAL-TIME SIZE STOCK) ===
 app.get("/api/detail/:table/:id", async (req, res) => {
   const { table, id } = req.params;
   if (!ALLOWED_PRODUCT_TABLES.includes(table)) {
@@ -484,14 +536,59 @@ app.get("/api/detail/:table/:id", async (req, res) => {
     if (!data)
       return res.status(404).json({ message: "Produk tidak ditemukan" });
 
+    let productPayload = data;
     if (table !== "sale_products") {
       const saleMap = await fetchActiveSaleMap();
-      return res.json(applySaleOverride(data, saleMap));
+      productPayload = applySaleOverride(data, saleMap);
     }
 
-    res.json(data);
+    try {
+      const variantSummary = await getProductVariants(
+        table,
+        Number(id),
+        productPayload
+      );
+      if (variantSummary && !variantSummary.notFound) {
+        productPayload = {
+          ...productPayload,
+          stock_tracked: Boolean(variantSummary.tracked),
+          canonical_product_type: variantSummary.canonical_type,
+          canonical_product_id: variantSummary.canonical_id,
+          total_stock: variantSummary.total_stock,
+          variants: variantSummary.variants,
+        };
+      }
+    } catch (variantErr) {
+      console.error("Failed attaching variant stock:", variantErr.message);
+    }
+
+    res.json(productPayload);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// === 7b. ROUTE REAL-TIME VARIANT STOCK PER SIZE ===
+app.get("/api/variants/:table/:id", async (req, res) => {
+  const { table, id } = req.params;
+  if (!ALLOWED_PRODUCT_TABLES.includes(table)) {
+    return res.status(400).json({ message: "Invalid product table." });
+  }
+
+  const productId = Number(id);
+  if (!Number.isInteger(productId) || productId <= 0) {
+    return res.status(400).json({ message: "Invalid product ID." });
+  }
+
+  try {
+    const result = await getProductVariants(table, productId);
+    if (result.notFound) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching product variants:", error.message);
+    res.status(500).json({ error: "Failed to fetch variant stock." });
   }
 });
 
@@ -550,7 +647,17 @@ app.post("/api/orders", authMiddleware, orderValidation, validate, async (req, r
 
     const verifiedTotalPrice = Math.max(0, subtotal - discountAmount);
 
-    const orderPayload = {
+    // Atomic per-size stock deduction (prevents overselling under concurrent checkout)
+    const stockResult = await deductStockAtomic(verifiedItems);
+    if (!stockResult.ok) {
+      return res.status(stockResult.status || 409).json({
+        error: stockResult.error,
+        code: stockResult.code || "INSUFFICIENT_STOCK",
+        conflict: stockResult.conflict || null,
+      });
+    }
+
+    const baseOrderPayload = {
       user_id: authenticatedUserId,
       full_name: full_name.trim(),
       address: address.trim(),
@@ -559,24 +666,150 @@ app.post("/api/orders", authMiddleware, orderValidation, validate, async (req, r
       phone: phone.trim(),
       total_price: verifiedTotalPrice,
       items: verifiedItems,
-      status: "Processing",
+      status: "Pending Payment",
     };
 
-    const { data, error } = await supabase
-      .from("orders")
-      .insert(orderPayload)
-      .select();
+    const extendedOrderPayload = {
+      ...baseOrderPayload,
+      courier: "TrueKicks Express",
+      coupon_code:
+        coupon_code && typeof coupon_code === "string" && coupon_code.trim()
+          ? coupon_code.trim().toUpperCase()
+          : null,
+      discount_amount: discountAmount,
+    };
 
-    if (error) throw error;
+    let insertRes;
+    let hasExtendedOrderCols = true;
 
-    res.status(201).json({
-      message: "Order berhasil dibuat!",
-      order: data,
+    try {
+      insertRes = await supabase
+        .from("orders")
+        .insert(extendedOrderPayload)
+        .select();
+
+      if (insertRes.error && isMissingSchemaError(insertRes.error)) {
+        hasExtendedOrderCols = false;
+        insertRes = await supabase
+          .from("orders")
+          .insert(baseOrderPayload)
+          .select();
+      }
+
+      if (insertRes.error) throw insertRes.error;
+    } catch (insertErr) {
+      if (stockResult.deducted && stockResult.canonicalItems?.length > 0) {
+        await restoreStockAtomic(stockResult.canonicalItems);
+      }
+      throw insertErr;
+    }
+
+    const insertedOrder = insertRes.data?.[0];
+
+    // Initiate Midtrans Snap transaction (or local sandbox simulator when Midtrans key unset)
+    let paymentSession = null;
+    try {
+      paymentSession = await createSnapTransaction({
+        order: insertedOrder,
+        items: verifiedItems,
+        discountAmount,
+        customerEmail: req.userEmail,
+        frontendUrl: req.headers.origin,
+      });
+    } catch (snapErr) {
+      console.error("Snap transaction creation error:", snapErr.message);
+      // Keep order as Pending Payment so user can retry via "Pay Now" in Order History
+      paymentSession = {
+        mode: isMidtransLiveConfigured() ? "sandbox" : "sandbox_simulator",
+        gateway: "midtrans",
+        gateway_order_id: null,
+        token: null,
+        redirect_url: null,
+        status: "pending",
+        error: snapErr.message,
+      };
+    }
+
+    const trackingNumber = generateTrackingNumber(insertedOrder);
+    const authenticityCode = generateAuthenticityCode(insertedOrder);
+
+    // Persist tracking, authenticity, and payment session metadata cleanly
+    if (insertedOrder?.id) {
+      const paymentCols = {
+        ...(hasExtendedOrderCols
+          ? {
+              tracking_number: trackingNumber,
+              authenticity_code: authenticityCode,
+            }
+          : {}),
+        payment_status: "pending",
+        payment_gateway: paymentSession?.gateway || "midtrans",
+        payment_gateway_order_id: paymentSession?.gateway_order_id || null,
+        payment_token: paymentSession?.token || null,
+        payment_redirect_url: paymentSession?.redirect_url || null,
+        payment_expires_at: paymentSession?.expires_at || null,
+      };
+
+      const metaUpdate = await supabase
+        .from("orders")
+        .update(paymentCols)
+        .eq("id", insertedOrder.id);
+
+      if (metaUpdate.error && isMissingSchemaError(metaUpdate.error) && hasExtendedOrderCols) {
+        await supabase
+          .from("orders")
+          .update({
+            tracking_number: trackingNumber,
+            authenticity_code: authenticityCode,
+          })
+          .eq("id", insertedOrder.id);
+      }
+    }
+
+    const enriched = enrichOrder({
+      ...insertedOrder,
+      tracking_number: trackingNumber,
+      authenticity_code: authenticityCode,
+      payment_status: "pending",
+      payment_gateway: paymentSession?.gateway || "midtrans",
+      payment_gateway_order_id: paymentSession?.gateway_order_id || null,
+      payment_token: paymentSession?.token || null,
+      payment_redirect_url: paymentSession?.redirect_url || null,
+      payment_expires_at: paymentSession?.expires_at || null,
+    });
+
+    // Best-effort clear user's cloud cart after successful order creation
+    try {
+      await supabase.from("cart_items").delete().eq("user_id", authenticatedUserId);
+    } catch {
+      // Ignore if cart_items migration has not run yet
+    }
+
+    // Best-effort order confirmation email via Resend (never blocks order creation)
+    const emailResult = await sendOrderConfirmationEmail({
+      to: req.userEmail,
+      order: enriched,
       pricing: {
         subtotal,
         discount_amount: discountAmount,
         total_price: verifiedTotalPrice,
       },
+      frontendUrl: req.headers.origin,
+    });
+
+    res.status(201).json({
+      message: "Order created. Please complete payment.",
+      order: [enriched],
+      pricing: {
+        subtotal,
+        discount_amount: discountAmount,
+        total_price: verifiedTotalPrice,
+      },
+      payment: paymentSession,
+      tracking_number: enriched.tracking_number,
+      authenticity_code: enriched.authenticity_code,
+      email_sent: Boolean(emailResult?.sent),
+      stock_tracked: Boolean(stockResult.tracked),
     });
   } catch (error) {
     console.error("Error creating order:", error.message);
@@ -608,7 +841,7 @@ app.get("/api/orders/user/:userId", authMiddleware, async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data || []);
+    res.json((data || []).map(enrichOrder));
   } catch (error) {
     console.error("Error fetching orders:", error.message);
     res.status(500).json({ error: error.message });
@@ -731,6 +964,857 @@ app.post("/api/coupons/verify", async (req, res) => {
   } catch (error) {
     console.error("Coupon verification error:", error.message);
     res.status(500).json({ error: "Failed to verify coupon" });
+  }
+});
+
+// === 12. CLOUD-SYNCED CART ROUTES (Protected, Owner-Scoped) ===
+app.get("/api/cart", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const { data, error } = await supabase
+      .from("cart_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.json({ synced: false, migrationRequired: true, items: [] });
+      }
+      throw error;
+    }
+
+    const saleMap = await fetchActiveSaleMap();
+    const items = (data || []).map((row) => {
+      const synced = applySaleOverride(
+        { name: row.name, price: Number(row.price) },
+        saleMap
+      );
+      return {
+        id: row.product_id,
+        productType: row.product_type || "sneakers",
+        name: row.name,
+        price: getAuthoritativePrice(row.product_type, synced),
+        image: row.image,
+        size: row.size,
+        quantity: Number(row.quantity) || 1,
+      };
+    });
+
+    const stockMeta = await enrichCartItemsWithStock(items);
+    res.json({
+      synced: true,
+      stock_tracked: stockMeta.stock_tracked,
+      stock_warnings: stockMeta.stock_warnings,
+      items: stockMeta.items,
+    });
+  } catch (error) {
+    console.error("Error fetching cloud cart:", error.message);
+    res.status(500).json({ error: "Failed to fetch cart." });
+  }
+});
+
+app.put("/api/cart", authMiddleware, cartSyncValidation, validate, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const rawItems = req.body.items || [];
+
+    // Deduplicate incoming items by (product_id, product_type, size)
+    const dedupMap = new Map();
+    for (const item of rawItems) {
+      const productId = Number(item.id);
+      if (!Number.isInteger(productId) || productId <= 0) continue;
+      const productType = item.productType || "sneakers";
+      const size = String(item.size).trim();
+      const key = `${productType}:${productId}:${size}`;
+      const qty = Math.min(100, Math.max(1, Number(item.quantity) || 1));
+
+      if (dedupMap.has(key)) {
+        dedupMap.get(key).quantity = Math.min(100, dedupMap.get(key).quantity + qty);
+      } else {
+        dedupMap.set(key, {
+          user_id: userId,
+          product_id: productId,
+          product_type: productType,
+          name: String(item.name).trim(),
+          price: Number(item.price) || 0,
+          image: item.image || "",
+          size,
+          quantity: qty,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    const delRes = await supabase.from("cart_items").delete().eq("user_id", userId);
+    if (delRes.error) {
+      if (isMissingSchemaError(delRes.error)) {
+        return res.json({ synced: false, migrationRequired: true, items: rawItems });
+      }
+      throw delRes.error;
+    }
+
+    const rowsToInsert = Array.from(dedupMap.values());
+    if (rowsToInsert.length > 0) {
+      const { error: insertErr } = await supabase.from("cart_items").insert(rowsToInsert);
+      if (insertErr) throw insertErr;
+    }
+
+    const mappedItems = rowsToInsert.map((r) => ({
+      id: r.product_id,
+      productType: r.product_type,
+      name: r.name,
+      price: r.price,
+      image: r.image,
+      size: r.size,
+      quantity: r.quantity,
+    }));
+
+    const stockMeta = await enrichCartItemsWithStock(mappedItems);
+
+    res.json({
+      synced: true,
+      stock_tracked: stockMeta.stock_tracked,
+      stock_warnings: stockMeta.stock_warnings,
+      items: stockMeta.items,
+    });
+  } catch (error) {
+    console.error("Error syncing cloud cart:", error.message);
+    res.status(500).json({ error: "Failed to sync cart." });
+  }
+});
+
+app.delete("/api/cart", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const { error } = await supabase.from("cart_items").delete().eq("user_id", userId);
+    if (error && !isMissingSchemaError(error)) throw error;
+    res.json({ synced: !error, items: [] });
+  } catch (error) {
+    console.error("Error clearing cloud cart:", error.message);
+    res.status(500).json({ error: "Failed to clear cart." });
+  }
+});
+
+// === 13. CLOUD-SYNCED WISHLIST ROUTES (Protected, Owner-Scoped) ===
+app.get("/api/wishlist", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const { data, error } = await supabase
+      .from("wishlist_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.json({ synced: false, migrationRequired: true, items: [] });
+      }
+      throw error;
+    }
+
+    const saleMap = await fetchActiveSaleMap();
+    const items = (data || []).map((row) => {
+      const base = {
+        id: row.product_id,
+        productType: row.product_type || "sneakers",
+        name: row.name,
+        price: Number(row.price) || 0,
+        discount_price: row.discount_price != null ? Number(row.discount_price) : null,
+        discount_percentage: Number(row.discount_percentage) || 0,
+        category: row.category || "",
+        image: row.image || "",
+      };
+      return applySaleOverride(base, saleMap);
+    });
+
+    res.json({ synced: true, items });
+  } catch (error) {
+    console.error("Error fetching cloud wishlist:", error.message);
+    res.status(500).json({ error: "Failed to fetch wishlist." });
+  }
+});
+
+app.put("/api/wishlist", authMiddleware, wishlistSyncValidation, validate, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const rawItems = req.body.items || [];
+
+    const dedupMap = new Map();
+    for (const item of rawItems) {
+      const productId = Number(item.id);
+      if (!Number.isInteger(productId) || productId <= 0) continue;
+      const productType = item.productType || "sneakers";
+      const key = `${productType}:${productId}`;
+      if (!dedupMap.has(key)) {
+        dedupMap.set(key, {
+          user_id: userId,
+          product_id: productId,
+          product_type: productType,
+          name: String(item.name).trim(),
+          price: Number(item.price) || 0,
+          discount_price: item.discount_price != null ? Number(item.discount_price) : null,
+          discount_percentage: Number(item.discount_percentage) || 0,
+          category: item.category ? String(item.category).trim() : "",
+          image: item.image || "",
+        });
+      }
+    }
+
+    const delRes = await supabase.from("wishlist_items").delete().eq("user_id", userId);
+    if (delRes.error) {
+      if (isMissingSchemaError(delRes.error)) {
+        return res.json({ synced: false, migrationRequired: true, items: rawItems });
+      }
+      throw delRes.error;
+    }
+
+    const rowsToInsert = Array.from(dedupMap.values());
+    if (rowsToInsert.length > 0) {
+      const { error: insertErr } = await supabase.from("wishlist_items").insert(rowsToInsert);
+      if (insertErr) throw insertErr;
+    }
+
+    res.json({
+      synced: true,
+      items: rowsToInsert.map((r) => ({
+        id: r.product_id,
+        productType: r.product_type,
+        name: r.name,
+        price: r.price,
+        discount_price: r.discount_price,
+        discount_percentage: r.discount_percentage,
+        category: r.category,
+        image: r.image,
+      })),
+    });
+  } catch (error) {
+    console.error("Error syncing cloud wishlist:", error.message);
+    res.status(500).json({ error: "Failed to sync wishlist." });
+  }
+});
+
+// === 14. SAVED SHIPPING ADDRESS BOOK ROUTES (Protected, Owner-Scoped) ===
+app.get("/api/addresses", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const { data, error } = await supabase
+      .from("user_addresses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.json({ synced: false, migrationRequired: true, addresses: [] });
+      }
+      throw error;
+    }
+
+    res.json({ synced: true, addresses: data || [] });
+  } catch (error) {
+    console.error("Error fetching saved addresses:", error.message);
+    res.status(500).json({ error: "Failed to fetch addresses." });
+  }
+});
+
+app.post("/api/addresses", authMiddleware, addressValidation, validate, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const { label, full_name, phone, address, city, postal_code, is_default } = req.body;
+
+    if (is_default) {
+      const unsetRes = await supabase
+        .from("user_addresses")
+        .update({ is_default: false })
+        .eq("user_id", userId);
+      if (unsetRes.error && isMissingSchemaError(unsetRes.error)) {
+        return res.status(200).json({ synced: false, migrationRequired: true, address: null });
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("user_addresses")
+      .insert([
+        {
+          user_id: userId,
+          label: (label || "Home").trim(),
+          full_name: full_name.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          postal_code: postal_code.trim(),
+          is_default: Boolean(is_default),
+        },
+      ])
+      .select();
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.status(200).json({ synced: false, migrationRequired: true, address: null });
+      }
+      throw error;
+    }
+
+    res.status(201).json({ synced: true, address: data[0] });
+  } catch (error) {
+    console.error("Error saving address:", error.message);
+    res.status(500).json({ error: "Failed to save address." });
+  }
+});
+
+app.put("/api/addresses/:id", authMiddleware, addressValidation, validate, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const addressId = parseInt(req.params.id, 10);
+    if (isNaN(addressId)) {
+      return res.status(400).json({ error: "Invalid address ID." });
+    }
+
+    const { label, full_name, phone, address, city, postal_code, is_default } = req.body;
+
+    if (is_default) {
+      await supabase
+        .from("user_addresses")
+        .update({ is_default: false })
+        .eq("user_id", userId);
+    }
+
+    const { data, error } = await supabase
+      .from("user_addresses")
+      .update({
+        label: (label || "Home").trim(),
+        full_name: full_name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        postal_code: postal_code.trim(),
+        is_default: Boolean(is_default),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", addressId)
+      .eq("user_id", userId)
+      .select();
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.status(200).json({ synced: false, migrationRequired: true, address: null });
+      }
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "Address not found." });
+    }
+
+    res.json({ synced: true, address: data[0] });
+  } catch (error) {
+    console.error("Error updating address:", error.message);
+    res.status(500).json({ error: "Failed to update address." });
+  }
+});
+
+app.delete("/api/addresses/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    const addressId = parseInt(req.params.id, 10);
+    if (isNaN(addressId)) {
+      return res.status(400).json({ error: "Invalid address ID." });
+    }
+
+    const { error } = await supabase
+      .from("user_addresses")
+      .delete()
+      .eq("id", addressId)
+      .eq("user_id", userId);
+
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        return res.status(200).json({ synced: false, migrationRequired: true });
+      }
+      throw error;
+    }
+
+    res.json({ synced: true, deletedId: addressId });
+  } catch (error) {
+    console.error("Error deleting address:", error.message);
+    res.status(500).json({ error: "Failed to delete address." });
+  }
+});
+
+// === 15. PUBLIC DIGITAL AUTHENTICITY VERIFICATION ROUTE ===
+app.get("/api/authenticity/:code", async (req, res) => {
+  try {
+    const rawCode = String(req.params.code || "").trim().toUpperCase();
+    if (!rawCode || rawCode.length < 8 || rawCode.length > 64) {
+      return res.status(400).json({ valid: false, message: "Invalid authenticity code format." });
+    }
+
+    let matchedOrder = null;
+
+    // 1. Try direct DB column lookup when migrated
+    const byColumn = await supabase
+      .from("orders")
+      .select("*")
+      .eq("authenticity_code", rawCode)
+      .maybeSingle();
+
+    if (!byColumn.error && byColumn.data) {
+      matchedOrder = byColumn.data;
+    } else {
+      // 2. Fallback: lookup by UUID prefix range (indexed PK scan) or numeric ID, then verify HMAC signature
+      const parsed = parseAuthenticityCode(rawCode);
+      if (parsed) {
+        let candidates = [];
+
+        if (parsed.isUuidPrefix) {
+          const lower = parsed.idPrefix.toLowerCase();
+          const uuidRange = await supabase
+            .from("orders")
+            .select("*")
+            .gte("id", `${lower}-0000-0000-0000-000000000000`)
+            .lte("id", `${lower}-ffff-ffff-ffff-ffffffffffff`)
+            .limit(10);
+
+          if (!uuidRange.error && Array.isArray(uuidRange.data)) {
+            candidates = uuidRange.data;
+          }
+        }
+
+        if (candidates.length === 0 && parsed.numericOrderId) {
+          const byId = await supabase
+            .from("orders")
+            .select("*")
+            .eq("id", parsed.numericOrderId)
+            .maybeSingle();
+
+          if (!byId.error && byId.data) {
+            candidates = [byId.data];
+          }
+        }
+
+        matchedOrder =
+          candidates.find((row) => verifyAuthenticityForOrder(rawCode, row)) ||
+          null;
+      }
+    }
+
+    if (!matchedOrder) {
+      return res.status(404).json({
+        valid: false,
+        message: "Authenticity certificate not found or invalid.",
+      });
+    }
+
+    const enriched = enrichOrder(matchedOrder);
+    // Return public-safe certificate only (mask buyer name, never expose address/phone/email)
+    res.json({
+      valid: true,
+      certificate: {
+        code: enriched.authenticity_code,
+        order_id: enriched.id,
+        issued_at: enriched.created_at,
+        verified_at: new Date().toISOString(),
+        status: enriched.status || "Processing",
+        buyer_masked: maskBuyerName(enriched.full_name),
+        courier: enriched.courier,
+        tracking_number: enriched.tracking_number,
+        items: (enriched.items || []).map((item) => ({
+          id: item.id,
+          productType: item.productType || "sneakers",
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+          image: item.image || item.image_url || "",
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Authenticity verification error:", error.message);
+    res.status(500).json({ valid: false, message: "Verification service error." });
+  }
+});
+
+// === 16. AI SNEAKER CONCIERGE ROUTE (Catalog-Grounded LLM + Fallback) ===
+app.post("/api/concierge/chat", conciergeLimiter, conciergeValidation, validate, async (req, res) => {
+  const { message, history, context } = req.body;
+  try {
+    const result = await askConcierge({ message, history, context });
+    res.json(result);
+  } catch (error) {
+    console.error("Concierge chat error:", error.message);
+    const isEn = context?.language === "en";
+    res.status(500).json({
+      message: isEn
+        ? "Kixo is temporarily unavailable. Please try again in a moment."
+        : "Kixo sedang tidak tersedia sementara. Silakan coba lagi beberapa saat.",
+    });
+  }
+});
+
+// === 17. DROP CALENDAR, NOTIFY ME & HYPE QUEUE ROUTES ===
+app.get("/api/drops", optionalAuth, async (req, res) => {
+  try {
+    const queryEmail =
+      typeof req.query.email === "string" ? req.query.email.trim() : "";
+    const result = await listDrops({
+      userId: req.userId ?? null,
+      email: req.userEmail || queryEmail || null,
+    });
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching drops:", error.message);
+    res.status(500).json({ error: "Failed to load drop calendar." });
+  }
+});
+
+app.post(
+  "/api/drops/:id/notify",
+  optionalAuth,
+  dropNotifyValidation,
+  validate,
+  async (req, res) => {
+    const dropId = Number(req.params.id);
+    if (!Number.isInteger(dropId) || dropId <= 0) {
+      return res.status(400).json({ message: "Invalid drop ID." });
+    }
+
+    const targetEmail = (req.body.email || req.userEmail || "").trim().toLowerCase();
+    if (!targetEmail) {
+      return res
+        .status(400)
+        .json({ message: "Email is required to enable drop reminders." });
+    }
+
+    try {
+      const result = await subscribeDropReminder({
+        dropId,
+        userId: req.userId ?? null,
+        email: targetEmail,
+      });
+
+      if (result.notFound) {
+        return res.status(404).json({ message: "Drop not found." });
+      }
+      if (result.invalidStatus) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      const statusCode = result.already_subscribed ? 200 : 201;
+      res.status(statusCode).json({
+        message: result.already_subscribed
+          ? "Reminder is already active for this drop."
+          : "Drop reminder saved!",
+        ...result,
+      });
+    } catch (error) {
+      console.error("Error saving drop reminder:", error.message);
+      res.status(500).json({ error: "Failed to save drop reminder." });
+    }
+  }
+);
+
+app.delete("/api/drops/:id/notify", optionalAuth, async (req, res) => {
+  const dropId = Number(req.params.id);
+  if (!Number.isInteger(dropId) || dropId <= 0) {
+    return res.status(400).json({ message: "Invalid drop ID." });
+  }
+
+  const targetEmail =
+    (typeof req.query.email === "string" && req.query.email.trim()) ||
+    (typeof req.body?.email === "string" && req.body.email.trim()) ||
+    req.userEmail ||
+    "";
+
+  if (!targetEmail && !req.userId) {
+    return res
+      .status(400)
+      .json({ message: "Email or authenticated session is required." });
+  }
+
+  try {
+    const result = await unsubscribeDropReminder({
+      dropId,
+      userId: req.userId ?? null,
+      email: targetEmail || null,
+    });
+
+    res.json({
+      message: "Drop reminder removed.",
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error removing drop reminder:", error.message);
+    res.status(500).json({ error: "Failed to remove drop reminder." });
+  }
+});
+
+app.post("/api/drops/:id/queue/join", optionalAuth, async (req, res) => {
+  const dropId = Number(req.params.id);
+  if (!Number.isInteger(dropId) || dropId <= 0) {
+    return res.status(400).json({ message: "Invalid drop ID." });
+  }
+
+  try {
+    const result = await joinHypeQueue({
+      dropId,
+      userId: req.userId ?? null,
+    });
+
+    if (result.notFound) {
+      return res.status(404).json({ message: "Drop not found." });
+    }
+    if (!result.ok) {
+      return res
+        .status(result.status || 400)
+        .json({ error: result.error, code: result.code });
+    }
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Error joining hype queue:", error.message);
+    res.status(500).json({ error: "Failed to join release queue." });
+  }
+});
+
+// === 18. PAYMENT GATEWAY (MIDTRANS SNAP) & WEBHOOK ROUTES ===
+app.get("/api/payments/config", (req, res) => {
+  res.json(getPublicPaymentConfig());
+});
+
+// Midtrans Server-to-Server Webhook (SHA-512 Signature Verified + Idempotent)
+app.post("/api/payments/webhook", async (req, res) => {
+  try {
+    const result = await processPaymentNotification({
+      payload: req.body,
+      requireSignature: true,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+
+    res.json({
+      received: true,
+      idempotent: Boolean(result.idempotent),
+      status: result.status,
+      payment_status: result.payment_status,
+      payment_method: result.payment_method || null,
+      stock_restored: Boolean(result.stock_restored),
+    });
+  } catch (error) {
+    console.error("Payment webhook error:", error.message);
+    res.status(500).json({ error: "Webhook processing failed." });
+  }
+});
+
+// Re-initiate or Resume Snap Payment for Pending Payment Order (Owner-Only)
+app.post("/api/orders/:id/pay", authMiddleware, async (req, res) => {
+  const orderId = String(req.params.id || "").trim();
+  if (!orderId) {
+    return res.status(400).json({ error: "Invalid order ID." });
+  }
+
+  try {
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!order) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    if (Number(order.user_id) !== Number(req.userId)) {
+      return res.status(403).json({ error: "Forbidden. You can only pay for your own orders." });
+    }
+
+    const enriched = enrichOrder(order);
+    const statusLower = String(enriched.status || "").toLowerCase();
+    const payStatusLower = String(enriched.payment_status || "").toLowerCase();
+
+    if (
+      payStatusLower === "paid" ||
+      ["paid", "processing", "packed", "shipped", "delivered", "completed"].includes(statusLower)
+    ) {
+      return res.status(400).json({ error: "This order has already been paid." });
+    }
+
+    if (
+      ["expired", "cancelled", "failed", "refunded"].includes(payStatusLower) ||
+      ["expired", "cancelled"].includes(statusLower)
+    ) {
+      return res.status(400).json({ error: "This order is expired or cancelled and cannot be paid." });
+    }
+
+    const paymentSession = await createSnapTransaction({
+      order,
+      items: order.items || [],
+      discountAmount: Number(order.discount_amount) || 0,
+      customerEmail: req.userEmail,
+      frontendUrl: req.headers.origin,
+    });
+
+    await supabase
+      .from("orders")
+      .update({
+        payment_status: "pending",
+        payment_gateway: paymentSession.gateway,
+        payment_gateway_order_id: paymentSession.gateway_order_id,
+        payment_token: paymentSession.token,
+        payment_redirect_url: paymentSession.redirect_url,
+        payment_expires_at: paymentSession.expires_at,
+      })
+      .eq("id", order.id);
+
+    res.json({
+      order: enrichOrder({
+        ...order,
+        payment_status: "pending",
+        payment_gateway: paymentSession.gateway,
+        payment_gateway_order_id: paymentSession.gateway_order_id,
+        payment_token: paymentSession.token,
+        payment_redirect_url: paymentSession.redirect_url,
+        payment_expires_at: paymentSession.expires_at,
+      }),
+      payment: paymentSession,
+    });
+  } catch (error) {
+    console.error("Re-initiate payment error:", error.message);
+    res.status(500).json({ error: "Failed to initialize payment session." });
+  }
+});
+
+// Poll & Reconcile Live Payment Status (Owner-Only)
+app.get("/api/orders/:id/payment-status", authMiddleware, async (req, res) => {
+  const orderId = String(req.params.id || "").trim();
+  if (!orderId) {
+    return res.status(400).json({ error: "Invalid order ID." });
+  }
+
+  try {
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!order) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+    if (Number(order.user_id) !== Number(req.userId)) {
+      return res.status(403).json({ error: "Forbidden." });
+    }
+
+    let latestOrder = enrichOrder(order);
+
+    // If Midtrans live sandbox/prod is configured and order is still pending, reconcile directly with Midtrans Status API
+    if (
+      isMidtransLiveConfigured() &&
+      latestOrder.payment_status === "pending" &&
+      latestOrder.payment_gateway_order_id
+    ) {
+      const midtransStatus = await fetchMidtransTransactionStatus(
+        latestOrder.payment_gateway_order_id
+      );
+      if (midtransStatus) {
+        const reconciled = await processPaymentNotification({
+          payload: midtransStatus,
+          requireSignature: false,
+          explicitOrderId: order.id,
+        });
+        if (reconciled.ok && reconciled.order) {
+          latestOrder = reconciled.order;
+        }
+      }
+    }
+
+    res.json({
+      order: latestOrder,
+      status: latestOrder.status,
+      payment_status: latestOrder.payment_status,
+      payment_method: latestOrder.payment_method || null,
+      paid_at: latestOrder.paid_at || null,
+    });
+  } catch (error) {
+    console.error("Payment status check error:", error.message);
+    res.status(500).json({ error: "Failed to check payment status." });
+  }
+});
+
+// Local Sandbox Payment Simulator (Disabled automatically when real Midtrans key or production mode is active)
+app.post("/api/payments/sandbox/simulate", authMiddleware, async (req, res) => {
+  if (isMidtransLiveConfigured() || isMidtransProduction()) {
+    return res.status(403).json({
+      error: "Sandbox simulator is disabled when live Midtrans credentials are active.",
+    });
+  }
+
+  const { order_id, action = "settlement", payment_type = "qris" } = req.body || {};
+  const allowedActions = ["settlement", "expire", "cancel"];
+  if (!order_id || !allowedActions.includes(String(action))) {
+    return res.status(400).json({ error: "Valid order_id and action (settlement|expire|cancel) are required." });
+  }
+
+  try {
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", order_id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!order) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+    if (Number(order.user_id) !== Number(req.userId)) {
+      return res.status(403).json({ error: "Forbidden." });
+    }
+
+    const gatewayOrderId =
+      order.payment_gateway_order_id || `TK-${String(order.id).slice(0, 8).toUpperCase()}-SIM`;
+    const grossAmount = `${Math.round(Number(order.total_price) || 0)}.00`;
+    const statusCode = action === "settlement" ? "200" : "202";
+    const signingSecret = getWebhookSigningSecret();
+
+    const syntheticWebhookPayload = {
+      order_id: gatewayOrderId,
+      status_code: statusCode,
+      gross_amount: grossAmount,
+      transaction_status: action,
+      fraud_status: "accept",
+      payment_type: String(payment_type || "qris"),
+      signature_key: computeMidtransSignature(
+        {
+          order_id: gatewayOrderId,
+          status_code: statusCode,
+          gross_amount: grossAmount,
+        },
+        signingSecret
+      ),
+    };
+
+    const result = await processPaymentNotification({
+      payload: syntheticWebhookPayload,
+      requireSignature: true,
+      explicitOrderId: order.id,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+
+    res.json({
+      simulated: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Sandbox payment simulation error:", error.message);
+    res.status(500).json({ error: "Failed to simulate payment." });
   }
 });
 
