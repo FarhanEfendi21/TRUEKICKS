@@ -14,6 +14,8 @@ const SHOWCASE_SNEAKERS = [
   {
     id: "nike-p6000",
     brand: "NIKE",
+    watermarkClass:
+      "text-[6.25rem] sm:text-[10.5rem] md:text-[14rem] lg:text-[17.5rem] tracking-[0.04em]",
     filterBrand: "Nike",
     name: "P-6000 Metallic Silver",
     price: "Rp 1.460.000",
@@ -23,6 +25,8 @@ const SHOWCASE_SNEAKERS = [
   {
     id: "jordan-1-low",
     brand: "JORDAN",
+    watermarkClass:
+      "text-[5rem] sm:text-[8.5rem] md:text-[11.5rem] lg:text-[14.5rem] tracking-[0.02em]",
     filterBrand: "Jordan",
     name: "Air Jordan 1 Low Wolf Grey",
     price: "Rp 2.250.000",
@@ -32,6 +36,8 @@ const SHOWCASE_SNEAKERS = [
   {
     id: "adidas-adizero",
     brand: "ADIDAS",
+    watermarkClass:
+      "text-[5rem] sm:text-[8.5rem] md:text-[11.5rem] lg:text-[14.5rem] tracking-[0.02em]",
     filterBrand: "Adidas",
     name: "Adizero EVO SL Black White",
     price: "Rp 2.400.000",
@@ -41,6 +47,8 @@ const SHOWCASE_SNEAKERS = [
   {
     id: "nb-1906l",
     brand: "NEW BALANCE",
+    watermarkClass:
+      "text-[3rem] sm:text-[5.25rem] md:text-[7.25rem] lg:text-[9.25rem] tracking-[-0.02em]",
     filterBrand: "New Balance",
     name: "1906L Silver Shadow Grey",
     price: "Rp 2.899.000",
@@ -50,6 +58,8 @@ const SHOWCASE_SNEAKERS = [
   {
     id: "puma-speedcat",
     brand: "PUMA",
+    watermarkClass:
+      "text-[6.25rem] sm:text-[10.5rem] md:text-[14rem] lg:text-[17.5rem] tracking-[0.04em]",
     filterBrand: "Puma",
     name: "Speedcat OG Black White",
     price: "Rp 1.899.000",
@@ -57,6 +67,24 @@ const SHOWCASE_SNEAKERS = [
     matchKeyword: "speedcat",
   },
 ];
+
+const WATERMARK_VARIANTS = {
+  enter: (dir) => ({
+    opacity: 0,
+    x: dir * 44,
+    scale: 0.96,
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+  },
+  exit: (dir) => ({
+    opacity: 0,
+    x: dir * -44,
+    scale: 1.03,
+  }),
+};
 
 const DRAG_THRESHOLD = 45;
 const AUTO_PLAY_MS = 5500;
@@ -72,6 +100,7 @@ function getCircularDelta(index, activeIndex, total) {
 export default function HeroSneakerSlider({ products = [], onExplore }) {
   const { pick } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [slideDir, setSlideDir] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const pointerStartX = useRef(null);
@@ -81,10 +110,12 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
   const activeSneaker = SHOWCASE_SNEAKERS[activeIndex];
 
   const handleNext = () => {
+    setSlideDir(1);
     setActiveIndex((prev) => (prev + 1) % SHOWCASE_SNEAKERS.length);
   };
 
   const handlePrev = () => {
+    setSlideDir(-1);
     setActiveIndex(
       (prev) => (prev - 1 + SHOWCASE_SNEAKERS.length) % SHOWCASE_SNEAKERS.length
     );
@@ -99,6 +130,7 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
     if (reduced) return undefined;
 
     const timer = window.setInterval(() => {
+      setSlideDir(1);
       setActiveIndex((prev) => (prev + 1) % SHOWCASE_SNEAKERS.length);
     }, AUTO_PLAY_MS);
     return () => window.clearInterval(timer);
@@ -193,6 +225,36 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
         {/* Subtle studio radial glow behind center sneaker (enhances dark shoes in dark mode) */}
         <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[380px] sm:h-[380px] md:w-[460px] md:h-[460px] rounded-full bg-gradient-to-b from-gray-200/40 via-white/20 to-transparent dark:from-white/[0.08] dark:via-white/[0.03] dark:to-transparent blur-3xl" />
 
+        {/* Architectural Brand Name Watermark Accent Behind Active Sneaker */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center -translate-y-4 sm:-translate-y-6 md:-translate-y-8 select-none"
+        >
+          <div
+            style={
+              dragOffset
+                ? { transform: `translate3d(${dragOffset * 0.22}px, 0, 0)` }
+                : undefined
+            }
+            className="w-full flex items-center justify-center transition-transform duration-150 ease-out will-change-transform"
+          >
+            <AnimatePresence mode="wait" custom={slideDir} initial={false}>
+              <Motion.span
+                key={activeSneaker.id}
+                custom={slideDir}
+                variants={WATERMARK_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                className={`font-black uppercase leading-none whitespace-nowrap bg-gradient-to-b from-gray-950/[0.11] via-gray-900/[0.06] to-gray-900/[0.015] dark:from-white/[0.12] dark:via-white/[0.055] dark:to-white/[0.012] bg-clip-text text-transparent ${activeSneaker.watermarkClass}`}
+              >
+                {activeSneaker.brand}
+              </Motion.span>
+            </AnimatePresence>
+          </div>
+        </div>
+
         {/* Ground contact shadow under active sneaker */}
         <div className="pointer-events-none absolute bottom-5 sm:bottom-7 md:bottom-8 left-1/2 -translate-x-1/2 w-[210px] sm:w-[290px] md:w-[360px] h-[28px] md:h-[34px] rounded-[100%] bg-black/15 dark:bg-black/60 blur-xl transition-opacity duration-500" />
 
@@ -276,23 +338,21 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
                   handleNext();
                 }
               }}
-              className={`absolute flex items-center justify-center w-[250px] sm:w-[340px] md:w-[440px] lg:w-[500px] will-change-transform ${
-                isAdjacent
-                  ? "cursor-pointer hover:opacity-65"
-                  : isCenter
+              className={`absolute flex items-center justify-center w-[250px] sm:w-[340px] md:w-[440px] lg:w-[500px] will-change-transform ${isAdjacent
+                ? "cursor-pointer hover:opacity-65"
+                : isCenter
                   ? "pointer-events-auto"
                   : "pointer-events-none"
-              }`}
+                }`}
             >
               <img
                 src={sneaker.image}
                 alt={`${sneaker.brand} ${sneaker.name}`}
                 draggable={false}
-                className={`w-full h-auto object-contain pointer-events-none ${
-                  isCenter
-                    ? "drop-shadow-[0_28px_36px_rgba(0,0,0,0.22)] dark:drop-shadow-[0_32px_44px_rgba(0,0,0,0.75)]"
-                    : "drop-shadow-[0_14px_20px_rgba(0,0,0,0.12)]"
-                }`}
+                className={`w-full h-auto object-contain pointer-events-none ${isCenter
+                  ? "drop-shadow-[0_28px_36px_rgba(0,0,0,0.22)] dark:drop-shadow-[0_32px_44px_rgba(0,0,0,0.75)]"
+                  : "drop-shadow-[0_14px_20px_rgba(0,0,0,0.12)]"
+                  }`}
               />
             </Motion.div>
           );
@@ -366,12 +426,14 @@ export default function HeroSneakerSlider({ products = [], onExplore }) {
               role="tab"
               aria-selected={isActive}
               aria-label={`Show ${sneaker.brand} ${sneaker.name}`}
-              onClick={() => setActiveIndex(index)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                isActive
-                  ? "w-8 bg-gray-900 dark:bg-white"
-                  : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-500 dark:hover:bg-gray-500"
-              }`}
+              onClick={() => {
+                setSlideDir(index >= activeIndex ? 1 : -1);
+                setActiveIndex(index);
+              }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${isActive
+                ? "w-8 bg-gray-900 dark:bg-white"
+                : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-500 dark:hover:bg-gray-500"
+                }`}
             />
           );
         })}

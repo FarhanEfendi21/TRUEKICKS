@@ -18,7 +18,7 @@ export default function Search() {
     const location = useLocation();
     const navigate = useNavigate();
     const { pick, t } = useLanguage();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
 
     const keyword = (
         searchParams.get("q") ||
@@ -26,17 +26,21 @@ export default function Search() {
         ""
     ).trim();
 
-    const [inputValue, setInputValue] = useState(keyword);
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all");
 
-    useEffect(() => {
-        setInputValue(keyword);
-    }, [keyword]);
+    const openGlobalSearch = (initialQuery = "") => {
+        window.dispatchEvent(
+            new CustomEvent("truekicks:open-search", {
+                detail: { query: initialQuery },
+            })
+        );
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
+        setActiveFilter("all");
         if (!keyword) {
             setResults([]);
             setIsLoading(false);
@@ -105,60 +109,30 @@ export default function Search() {
         sale_products: results.filter((r) => r.productType === "sale_products").length,
     };
 
-    const handleSubmitSearch = (e) => {
-        e.preventDefault();
-        const trimmed = inputValue.trim();
-        if (trimmed) {
-            setSearchParams({ q: trimmed });
-            setActiveFilter("all");
-        }
-    };
-
     return (
         <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-950 font-poppins transition-colors duration-300">
             <Navbar />
 
             <main className="pt-28 md:pt-32 pb-24 max-w-7xl mx-auto px-4 md:px-8">
-                {/* Header + Inline Refine Search */}
-                <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">
-                            {keyword
-                                ? pick("Hasil pencarian untuk", "Search results for")
-                                : pick("Cari di TrueKicks", "Search TrueKicks")}
+                {/* Header */}
+                <div className="mb-8">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">
+                        {keyword
+                            ? pick("Hasil pencarian untuk", "Search results for")
+                            : pick("Cari di TrueKicks", "Search TrueKicks")}
+                    </p>
+                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                        {keyword ? `"${keyword}"` : pick("Temukan Pilihanmu", "Find Your Pair")}
+                    </h1>
+                    {keyword && !isLoading && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
+                            {counts.all}{" "}
+                            {pick(
+                                "produk ditemukan",
+                                counts.all === 1 ? "product found" : "products found"
+                            )}
                         </p>
-                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                            {keyword ? `"${keyword}"` : pick("Temukan Pilihanmu", "Find Your Pair")}
-                        </h1>
-                        {keyword && !isLoading && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
-                                {counts.all}{" "}
-                                {pick(
-                                    "produk ditemukan",
-                                    counts.all === 1 ? "product found" : "products found"
-                                )}
-                            </p>
-                        )}
-                    </div>
-
-                    <form onSubmit={handleSubmitSearch} className="w-full md:w-80">
-                        <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full px-4 py-2 shadow-sm focus-within:border-gray-900 dark:focus-within:border-[#FF5500] transition-colors">
-                            <input
-                                type="text"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                placeholder={t("search.placeholder")}
-                                aria-label={t("search.placeholder")}
-                                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none"
-                            />
-                            <button
-                                type="submit"
-                                className="px-3.5 py-1.5 rounded-full bg-gray-900 dark:bg-[#FF5500] text-white text-xs font-bold hover:opacity-90 transition-opacity"
-                            >
-                                {pick("Cari", "Search")}
-                            </button>
-                        </div>
-                    </form>
+                    )}
                 </div>
 
                 {/* Filter Tabs */}
@@ -238,17 +212,28 @@ export default function Search() {
                                       `We couldn't find any products matching "${keyword}". Try another keyword or browse our collections.`
                                   )
                                 : pick(
-                                      "Ketik nama produk, merek, atau kategori di atas untuk mulai mencari.",
-                                      "Type a product name, brand, or category above to start searching."
+                                      "Gunakan tombol pencarian di bilah navigasi atau tekan Ctrl+K untuk mulai mencari.",
+                                      "Use the search button in the navigation bar or press Ctrl+K to start searching."
                                   )}
                         </p>
-                        <button
-                            type="button"
-                            onClick={() => navigate("/sneakers")}
-                            className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-                        >
-                            {pick("Jelajahi Semua Produk", "Browse All Products")}
-                        </button>
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => openGlobalSearch("")}
+                                className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                            >
+                                {keyword
+                                    ? pick("Cari Kata Kunci Lain", "Search Again")
+                                    : pick("Buka Pencarian", "Open Search")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate("/sneakers")}
+                                className="px-6 py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-full text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            >
+                                {pick("Jelajahi Semua Produk", "Browse All Products")}
+                            </button>
+                        </div>
                     </div>
                 )}
 

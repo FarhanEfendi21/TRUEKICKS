@@ -361,115 +361,134 @@ export default function OrderHistory() {
                         toggleOrder(order.id);
                       }
                     }}
-                    className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer select-none"
+                    className="w-full p-4 sm:p-5 cursor-pointer select-none"
                   >
-                    {/* Left: Thumbnail + Invoice Meta */}
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#F6F6F6] dark:bg-gray-100 flex items-center justify-center p-1.5 flex-shrink-0">
-                        {firstItem?.image ? (
-                          <img
-                            src={firstItem.image}
-                            alt={firstItem.name || "Product"}
-                            className="w-full h-full object-contain mix-blend-multiply"
-                          />
-                        ) : (
-                          <span className="text-xs font-bold text-gray-400">
-                            TK
-                          </span>
-                        )}
-                        {extraCount > 0 && (
-                          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-gray-950 text-white text-[9px] font-bold leading-none tabular-nums">
-                            +{extraCount}
-                          </span>
-                        )}
+                    {/* Mobile Top Meta Bar: Invoice ID + Date on left, Status Badge on right */}
+                    <div className="flex sm:hidden items-center justify-between gap-2 pb-3 mb-3 border-b border-gray-100 dark:border-gray-900">
+                      <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-gray-400">
+                        <span className="font-mono font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                          INV-{shortId}
+                        </span>
+                        <span className="flex-shrink-0">·</span>
+                        <span className="truncate">{formattedDate}</span>
                       </div>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap flex-shrink-0 ${getOrderStatusBadge(
+                          order.status
+                        )}`}
+                      >
+                        {translateOrderStatus(order.status, language)}
+                      </span>
+                    </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-400">
-                          <span className="font-mono font-semibold text-gray-700 dark:text-gray-300">
-                            INV-{shortId}
-                          </span>
-                          <span>·</span>
-                          <span>{formattedDate}</span>
-                        </div>
-
-                        <p className="text-sm font-bold text-gray-950 dark:text-white truncate mt-0.5">
-                          {firstItem?.name || pick("Pesanan TrueKicks", "TrueKicks Order")}
-                          {extraCount > 0 && (
-                            <span className="font-medium text-gray-400">
-                              {" "}
-                              {pick(`(+${extraCount} lainnya)`, `(+${extraCount} more)`)}
+                    {/* Main Summary Row */}
+                    <div className="flex items-center justify-between gap-3 sm:gap-4">
+                      {/* Left: Thumbnail + Invoice Info */}
+                      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#F6F6F6] dark:bg-gray-100 flex items-center justify-center p-1.5 flex-shrink-0">
+                          {firstItem?.image ? (
+                            <img
+                              src={firstItem.image}
+                              alt={firstItem.name || "Product"}
+                              className="w-full h-full object-contain mix-blend-multiply"
+                            />
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400">
+                              TK
                             </span>
                           )}
-                        </p>
+                          {extraCount > 0 && (
+                            <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-gray-950 text-white text-[9px] font-bold leading-none tabular-nums">
+                              +{extraCount}
+                            </span>
+                          )}
+                        </div>
 
-                        {/* Mobile compact status & total */}
-                        <div className="flex items-center gap-2 mt-1.5 sm:hidden">
+                        <div className="min-w-0 flex-1">
+                          {/* Desktop Invoice ID + Date */}
+                          <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-400">
+                            <span className="font-mono font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                              INV-{shortId}
+                            </span>
+                            <span>·</span>
+                            <span className="whitespace-nowrap">{formattedDate}</span>
+                          </div>
+
+                          <p className="text-sm font-bold text-gray-950 dark:text-white truncate sm:mt-0.5">
+                            {firstItem?.name || pick("Pesanan TrueKicks", "TrueKicks Order")}
+                            {extraCount > 0 && (
+                              <span className="font-medium text-gray-400">
+                                {" "}
+                                {pick(`(+${extraCount} lainnya)`, `(+${extraCount} more)`)}
+                              </span>
+                            )}
+                          </p>
+
+                          {/* Mobile Total & Qty Line (Single-Line, Never Breaks) */}
+                          <div className="flex sm:hidden items-center gap-2 mt-1">
+                            <span className="text-xs font-bold text-gray-950 dark:text-white tabular-nums whitespace-nowrap">
+                              {formatRupiah(order.total_price)}
+                            </span>
+                            <span className="text-gray-300 dark:text-gray-700">·</span>
+                            <span className="text-[11px] text-gray-400 whitespace-nowrap tabular-nums">
+                              {totalQty} {pick("item", totalQty === 1 ? "item" : "items")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Desktop Total & Status + Quick Pay + Chevron */}
+                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                        <div className="hidden sm:flex flex-col items-end">
+                          <span className="text-sm font-bold text-gray-950 dark:text-white tabular-nums whitespace-nowrap">
+                            {formatRupiah(order.total_price)}
+                          </span>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getOrderStatusBadge(
+                            className={`mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${getOrderStatusBadge(
                               order.status
                             )}`}
                           >
                             {translateOrderStatus(order.status, language)}
                           </span>
-                          <span className="text-xs font-bold text-gray-950 dark:text-white tabular-nums">
-                            {formatRupiah(order.total_price)}
-                          </span>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Right: Status, Total, Quick Pay & Chevron */}
-                    <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-                      <div className="hidden sm:flex flex-col items-end">
-                        <span className="text-sm font-bold text-gray-950 dark:text-white tabular-nums">
-                          {formatRupiah(order.total_price)}
-                        </span>
+                        {isPendingPay && (
+                          <button
+                            type="button"
+                            disabled={payingOrderId === order.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePayOrder(order);
+                            }}
+                            className="h-8 px-3.5 rounded-full bg-gray-950 dark:bg-white text-white dark:text-gray-950 text-[11px] font-semibold whitespace-nowrap hover:opacity-90 disabled:opacity-50 transition-opacity"
+                          >
+                            {payingOrderId === order.id
+                              ? "..."
+                              : pick("Bayar", "Pay")}
+                          </button>
+                        )}
+
                         <span
-                          className={`mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${getOrderStatusBadge(
-                            order.status
-                          )}`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-400 flex-shrink-0 transition-transform duration-300 ${
+                            isOpen
+                              ? "rotate-180 text-gray-950 dark:text-white bg-gray-100 dark:bg-gray-900"
+                              : ""
+                          }`}
                         >
-                          {translateOrderStatus(order.status, language)}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-4 h-4"
+                          >
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
                         </span>
                       </div>
-
-                      {isPendingPay && (
-                        <button
-                          type="button"
-                          disabled={payingOrderId === order.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePayOrder(order);
-                          }}
-                          className="h-8 px-3.5 rounded-full bg-gray-950 dark:bg-white text-white dark:text-gray-950 text-[11px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
-                        >
-                          {payingOrderId === order.id
-                            ? "..."
-                            : pick("Bayar", "Pay")}
-                        </button>
-                      )}
-
-                      <span
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-400 transition-transform duration-300 ${
-                          isOpen
-                            ? "rotate-180 text-gray-950 dark:text-white bg-gray-100 dark:bg-gray-900"
-                            : ""
-                        }`}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="w-4 h-4"
-                        >
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </span>
                     </div>
                   </div>
 
@@ -573,7 +592,7 @@ export default function OrderHistory() {
                                     )}
                                   </p>
                                 </div>
-                                <p className="text-sm font-semibold text-gray-950 dark:text-white tabular-nums flex-shrink-0">
+                                <p className="text-sm font-semibold text-gray-950 dark:text-white tabular-nums whitespace-nowrap flex-shrink-0">
                                   {formatRupiah(
                                     (Number(item.price) || 0) *
                                       (Number(item.quantity) || 1)

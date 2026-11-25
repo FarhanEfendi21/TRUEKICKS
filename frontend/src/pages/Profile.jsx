@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import api, { logout } from "../lib/api";
+import api, {
+  AUTH_CHANGE_EVENT,
+  clearProfileImage,
+  logout,
+  readProfileImage,
+  saveProfileImage,
+  setSessionUser,
+} from "../lib/api";
 import { formatRupiah, getOrderStatusBadge } from "../lib/pricing";
 import { translateOrderStatus } from "../lib/translations";
 import { useLanguage } from "../Context/LanguageContext";
@@ -16,18 +23,6 @@ export default function Profile() {
   const { language, setLanguage, locale, pick } = useLanguage();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [profileImage, setProfileImage] = useState(
-    localStorage.getItem('profileImage') || null
-  );
-
-  // Order History & Saved Address States
-  const [orders, setOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
-  const [expandedOrder, setExpandedOrder] = useState(null);
-  const [savedAddresses, setSavedAddresses] = useState([]);
-  const [payingOrderId, setPayingOrderId] = useState(null);
-  const [activePaymentOrder, setActivePaymentOrder] = useState(null);
-
   const [user, setUser] = useState(() => {
     try {
       const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -38,8 +33,41 @@ export default function Profile() {
   });
   const isGuest = !user || !user.id || user.email === 'guest@truekicks.com' || user.full_name === 'Guest';
 
+  const [profileImage, setProfileImage] = useState(() => readProfileImage(user));
+
+  // Order History & Saved Address States
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [expandedOrder, setExpandedOrder] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [payingOrderId, setPayingOrderId] = useState(null);
+  const [activePaymentOrder, setActivePaymentOrder] = useState(null);
+
   const [editForm, setEditForm] = useState({ full_name: user.full_name });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync user & user-scoped avatar when authoritative session changes
+  useEffect(() => {
+    const syncAuth = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("user"));
+        const nextUser = stored || { full_name: "Guest", email: "guest@truekicks.com" };
+        setUser(nextUser);
+        setEditForm({ full_name: nextUser.full_name || "" });
+        setProfileImage(readProfileImage(nextUser));
+      } catch {
+        const fallback = { full_name: "Guest", email: "guest@truekicks.com" };
+        setUser(fallback);
+        setProfileImage(null);
+      }
+    };
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener(AUTH_CHANGE_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener(AUTH_CHANGE_EVENT, syncAuth);
+    };
+  }, []);
 
   // Close modals on Escape
   useEffect(() => {
@@ -55,7 +83,7 @@ export default function Profile() {
     return () => document.removeEventListener("keydown", handleEsc);
   }, [showEditModal, showLogoutModal]);
 
-  // Fetch Order History
+  // Fetch Order History & refresh live RBAC role
   useEffect(() => {
     const fetchOrders = async () => {
       if (isGuest || !user.id) {
@@ -63,8 +91,15 @@ export default function Profile() {
         return;
       }
       try {
-        const response = await api.get(`/api/orders/user/${user.id}`);
-        setOrders(response.data || []);
+        const [ordersRes, meRes] = await Promise.all([
+          api.get(`/api/orders/user/${user.id}`),
+          api.get("/api/auth/me", { skipAuthRedirect: true }).catch(() => null),
+        ]);
+        setOrders(ordersRes.data || []);
+        if (meRes?.data?.user) {
+          const synced = setSessionUser(meRes.data.user);
+          if (synced) setUser(synced);
+        }
       } catch (error) {
         console.error("Failed to fetch orders:", error);
         setOrders([]);
@@ -210,7 +245,7 @@ export default function Profile() {
 
   const handleLogout = async () => {
     await logout();
-    localStorage.removeItem("profileImage");
+    setProfileImage(null);
     navigate("/login");
   };
 
@@ -224,8 +259,7 @@ export default function Profile() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result);
-        localStorage.setItem('profileImage', reader.result);
-        window.dispatchEvent(new Event("storage"));
+        saveProfileImage(user, reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -233,8 +267,7 @@ export default function Profile() {
 
   const removeProfileImage = () => {
     setProfileImage(null);
-    localStorage.removeItem('profileImage');
-    window.dispatchEvent(new Event("storage"));
+    clearProfileImage(user);
   };
 
   const handleSaveProfile = async () => {
@@ -250,11 +283,12 @@ export default function Profile() {
       });
 
       if (response.data.user) {
-        const updatedUser = { ...user, full_name: response.data.user.full_name };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        const updatedUser = setSessionUser(response.data.user) || {
+          ...user,
+          full_name: response.data.user.full_name,
+        };
         setUser(updatedUser);
         setEditForm({ full_name: updatedUser.full_name });
-        window.dispatchEvent(new Event("storage"));
         setShowEditModal(false);
         toast.success(pick("Profil berhasil diperbarui!", "Profile updated!"));
       }
@@ -302,7 +336,7 @@ export default function Profile() {
           </div>
 
           {/* Quick Actions */}
-          <div className="flex gap-3 mb-6">
+          <div className="flex flex-wrap gap-3 mb-6">
             {isGuest ? (
               <button
                 onClick={() => navigate("/login")}
@@ -312,6 +346,15 @@ export default function Profile() {
               </button>
             ) : (
               <>
+                {user?.role === "admin" && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/admin")}
+                    className="w-full py-3 bg-gray-950 dark:bg-white text-white dark:text-gray-950 text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                  >
+                    <span>{pick("Buka Admin Dashboard", "Open Admin Dashboard")}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowEditModal(true)}
                   className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -414,28 +457,32 @@ export default function Profile() {
                     {/* Order Row */}
                     <div
                       onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors"
+                      className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
                           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                           </svg>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{order.items?.length || 0} Item{(order.items?.length || 0) > 1 ? 's' : ''}</p>
-                          <p className="text-xs text-gray-400">{formatDate(order.created_at)}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {order.items?.length || 0} {pick("Item", (order.items?.length || 0) > 1 ? "Items" : "Item")}
+                          </p>
+                          <p className="text-xs text-gray-400 whitespace-nowrap">{formatDate(order.created_at)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 flex-shrink-0">
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatRupiah(order.total_price)}</p>
-                          <span className={`inline-block mt-0.5 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${getOrderStatusBadge(order.status)}`}>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums whitespace-nowrap">
+                            {formatRupiah(order.total_price)}
+                          </p>
+                          <span className={`inline-block mt-0.5 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${getOrderStatusBadge(order.status)}`}>
                             {translateOrderStatus(order.status, language)}
                           </span>
                         </div>
                         <svg
-                          className={`w-4 h-4 text-gray-400 transition-transform ${expandedOrder === order.id ? 'rotate-180' : ''}`}
+                          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${expandedOrder === order.id ? 'rotate-180' : ''}`}
                           fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

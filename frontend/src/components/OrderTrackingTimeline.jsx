@@ -200,7 +200,7 @@ export default function OrderTrackingTimeline({
                 e.stopPropagation();
                 onPayNow(order);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF5500] hover:bg-orange-600 text-white text-[11px] font-bold disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF5500] hover:bg-orange-600 text-white text-[11px] font-bold whitespace-nowrap disabled:opacity-50 transition-colors"
             >
               <span>
                 {paying
@@ -214,7 +214,7 @@ export default function OrderTrackingTimeline({
             <Link
               to={`/verify/${encodeURIComponent(authenticityCode)}`}
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 text-[11px] font-bold hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 text-[11px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -222,7 +222,7 @@ export default function OrderTrackingTimeline({
                 viewBox="0 0 24 24"
                 strokeWidth={2.2}
                 stroke="currentColor"
-                className="w-3.5 h-3.5"
+                className="w-3.5 h-3.5 flex-shrink-0"
               >
                 <path
                   strokeLinecap="round"
@@ -238,7 +238,7 @@ export default function OrderTrackingTimeline({
             type="button"
             disabled={downloading}
             onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[11px] font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[11px] font-bold whitespace-nowrap hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -246,7 +246,7 @@ export default function OrderTrackingTimeline({
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
-              className="w-3.5 h-3.5"
+              className="w-3.5 h-3.5 flex-shrink-0"
             >
               <path
                 strokeLinecap="round"
@@ -260,7 +260,7 @@ export default function OrderTrackingTimeline({
       </div>
 
       {/* Stepper Timeline */}
-      <div className={`grid grid-cols-1 ${steps.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-4"} gap-3`}>
+      <div className={`grid grid-cols-1 ${steps.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-4"} gap-2.5 sm:gap-3`}>
         {steps.map((step, idx) => {
           const isDone = step.completed;
           const isCurrent = step.active;
@@ -274,13 +274,13 @@ export default function OrderTrackingTimeline({
           return (
             <div
               key={step.key}
-              className={`relative flex sm:flex-col items-start gap-3 sm:gap-2 p-3 rounded-xl border transition-colors ${
+              className={`relative flex items-center sm:flex-col sm:items-stretch gap-3 sm:gap-2 p-3 rounded-xl border transition-colors ${
                 isCurrent
                   ? "bg-white dark:bg-gray-800/80 border-gray-300 dark:border-gray-700 shadow-sm"
                   : "bg-gray-50/70 dark:bg-gray-900/60 border-gray-100 dark:border-gray-800/80"
               }`}
             >
-              <div className="flex items-center gap-2 w-full sm:justify-between">
+              <div className="flex items-center sm:justify-between gap-2 flex-shrink-0 sm:w-full">
                 <span
                   className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${dotColor}`}
                 >
@@ -304,22 +304,29 @@ export default function OrderTrackingTimeline({
                   )}
                 </span>
                 {isCurrent && !isCancelled && (
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#FF5500] bg-orange-50 dark:bg-orange-500/15 px-2 py-0.5 rounded-full">
+                  <span className="hidden sm:inline-flex text-[9px] font-bold uppercase tracking-wider text-[#FF5500] bg-orange-50 dark:bg-orange-500/15 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {pick("Saat Ini", "Current")}
                   </span>
                 )}
               </div>
 
-              <div className="min-w-0">
-                <p
-                  className={`text-xs font-bold leading-snug ${
-                    isDone
-                      ? "text-gray-900 dark:text-white"
-                      : "text-gray-400 dark:text-gray-500"
-                  }`}
-                >
-                  {step.label}
-                </p>
+              <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <p
+                    className={`text-xs font-bold leading-snug ${
+                      isDone
+                        ? "text-gray-900 dark:text-white"
+                        : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {isCurrent && !isCancelled && (
+                    <span className="sm:hidden inline-flex flex-shrink-0 text-[9px] font-bold uppercase tracking-wider text-[#FF5500] bg-orange-50 dark:bg-orange-500/15 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      {pick("Saat Ini", "Current")}
+                    </span>
+                  )}
+                </div>
                 {!compact && step.description && (
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
                     {step.description}
