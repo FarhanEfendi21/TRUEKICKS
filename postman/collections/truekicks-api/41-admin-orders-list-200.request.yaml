@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Tier 1: Admin List All Orders (200)'
+method: GET
+url: '{{base_url}}/api/admin/orders?limit=20'
+order: 41000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/admin/orders returns 200 for Admin', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns orders array', () => {
+        const body = pm.response.json();
+        pm.expect(body.orders).to.be.an('array');
+      });

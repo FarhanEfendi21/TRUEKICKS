@@ -1,0 +1,31 @@
+$kind: http-request
+name: 'Tier 1: Admin Generate Signed Storage Upload URL (200)'
+method: POST
+url: '{{base_url}}/api/admin/uploads/sign'
+order: 46000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+body:
+  type: json
+  content: '{"product_type":"sneakers","product_id":2,"content_type":"image/webp","filename":"angle-side.webp"}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/admin/uploads/sign returns 200 for Admin', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns signed_url, public_url, and managed sneakers path', () => {
+        const body = pm.response.json();
+        pm.expect(body.ok).to.equal(true);
+        pm.expect(body.bucket).to.equal('images');
+        pm.expect(body.signed_url).to.be.a('string').and.include('http');
+        pm.expect(body.public_url).to.be.a('string').and.include('/storage/v1/object/public/images/sneakers/2/');
+        pm.expect(body.path).to.match(/^sneakers\/2\/angle-side-/);
+      });

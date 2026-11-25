@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Tier 1: Admin Analytics Blocks Customer Role (403 RBAC)'
+method: GET
+url: '{{base_url}}/api/admin/analytics'
+order: 39000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{customer_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/admin/analytics returns 403 for non-admin customer', () => {
+        pm.response.to.have.status(403);
+      });
+      pm.test('Returns ADMIN_REQUIRED error code', () => {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ADMIN_REQUIRED');
+      });

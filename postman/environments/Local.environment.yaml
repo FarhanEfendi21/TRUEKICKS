@@ -15,3 +15,13 @@ values:
     enabled: true
     type: secret
     description: Runtime JWT bearer token supplied via --env-var
+  - key: customer_token
+    value: ''
+    enabled: true
+    type: secret
+    description: Non-admin customer JWT token for RBAC 403 tests
+  - key: admin_token
+    value: ''
+    enabled: true
+    type: secret
+    description: Admin JWT token for protected /api/admin/* tests

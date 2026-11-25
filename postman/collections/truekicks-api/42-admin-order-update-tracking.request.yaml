@@ -1,0 +1,30 @@
+$kind: http-request
+name: 'Tier 1: Admin Update Order Status & Tracking Number (PATCH)'
+method: PATCH
+url: '{{base_url}}/api/admin/orders/{{created_order_id}}'
+order: 42000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+body:
+  type: json
+  content: '{"status":"Shipped","courier":"JNE YES","tracking_number":"JNE-TK-POSTMAN-001"}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('PATCH /api/admin/orders/:id returns 200 for Admin', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Updates status, courier, tracking_number, and shipped_at', () => {
+        const body = pm.response.json();
+        pm.expect(body.order.status).to.equal('Shipped');
+        pm.expect(body.order.courier).to.equal('JNE YES');
+        pm.expect(body.order.tracking_number).to.equal('JNE-TK-POSTMAN-001');
+        pm.expect(body.order.shipped_at).to.be.a('string').and.not.empty;
+      });

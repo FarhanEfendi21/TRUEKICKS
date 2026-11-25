@@ -1,0 +1,30 @@
+$kind: http-request
+name: 'Tier 1: Admin Create Promo Coupon (POST)'
+method: POST
+url: '{{base_url}}/api/admin/coupons'
+order: 43000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+body:
+  type: json
+  content: '{"code":"TKADMIN99","discount_type":"percent","discount_value":15,"min_purchase":250000,"expiry_date":"2028-12-31T23:59:59.000Z"}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/admin/coupons returns 201 Created', () => {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Returns created normalized coupon and captures ID', () => {
+        const body = pm.response.json();
+        pm.expect(body.coupon).to.be.an('object');
+        pm.expect(body.coupon.code).to.equal('TKADMIN99');
+        pm.expect(body.coupon.discount_value).to.equal(15);
+        pm.environment.set('created_coupon_id', String(body.coupon.id));
+      });

@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Tier 1: Admin Revenue Analytics & KPIs (200)'
+method: GET
+url: '{{base_url}}/api/admin/analytics?days=14&months=6'
+order: 40000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/admin/analytics returns 200 for Admin', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns summary KPIs and daily/monthly revenue series', () => {
+        const body = pm.response.json();
+        pm.expect(body.summary).to.be.an('object');
+        pm.expect(body.summary.total_revenue).to.be.a('number');
+        pm.expect(body.daily_revenue).to.be.an('array').with.lengthOf(14);
+        pm.expect(body.monthly_revenue).to.be.an('array').with.lengthOf(6);
+      });

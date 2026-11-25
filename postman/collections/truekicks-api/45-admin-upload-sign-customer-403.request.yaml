@@ -1,0 +1,27 @@
+$kind: http-request
+name: 'Tier 1: Admin Signed Upload Rejects Customer Role (403)'
+method: POST
+url: '{{base_url}}/api/admin/uploads/sign'
+order: 45000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{customer_token}}'
+body:
+  type: json
+  content: '{"product_type":"sneakers","product_id":2,"content_type":"image/webp","filename":"angle-side.webp"}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('POST /api/admin/uploads/sign returns 403 for non-admin customer', () => {
+        pm.response.to.have.status(403);
+      });
+      pm.test('Returns ADMIN_REQUIRED error code', () => {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ADMIN_REQUIRED');
+      });

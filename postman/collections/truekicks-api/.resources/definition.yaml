@@ -1,10 +1,14 @@
 $kind: collection
 name: TrueKicks API
-description: Contract and regression test suite for TrueKicks storefront backend (Catalog, Sale Sync, Coupons, Tier 3 Cloud Sync & Digital Authenticity).
+description: Contract and regression test suite for TrueKicks storefront backend (Catalog, Sale Sync, Coupons, Tier 3 Cloud Sync, Digital Authenticity, Payments & Admin RBAC).
 variables:
   - key: base_url
     value: 'http://localhost:5000'
   - key: sample_auth_code
     value: 'TK-AUTH-B4F8C1CA-EF8AF0B8'
   - key: auth_token
+    value: ''
+  - key: customer_token
+    value: ''
+  - key: admin_token
     value: ''

@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Tier 1: Current Session Profile & Role (/api/auth/me)'
+method: GET
+url: '{{base_url}}/api/auth/me'
+order: 37000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/auth/me returns 200 for authenticated user', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Returns user profile with valid RBAC role and without password hash', () => {
+        const body = pm.response.json();
+        pm.expect(body.user).to.be.an('object');
+        pm.expect(body.user.email).to.be.a('string').and.not.empty;
+        pm.expect(['customer', 'admin']).to.include(body.user.role);
+        pm.expect(body.user).to.not.have.property('password');
+      });

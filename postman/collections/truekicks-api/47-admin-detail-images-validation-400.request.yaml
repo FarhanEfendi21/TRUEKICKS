@@ -1,0 +1,23 @@
+$kind: http-request
+name: 'Tier 1: Admin Detail Images Validation Rejects Invalid URL (400)'
+method: PUT
+url: '{{base_url}}/api/admin/products/sneakers/2/detail-images'
+order: 47000
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{admin_token}}'
+body:
+  type: json
+  content: '{"detail_images":["not-a-valid-url"]}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('PUT /api/admin/products/sneakers/:id/detail-images rejects invalid URL with 400', () => {
+        pm.response.to.have.status(400);
+      });

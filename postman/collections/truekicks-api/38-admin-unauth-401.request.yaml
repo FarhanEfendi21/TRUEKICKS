@@ -1,0 +1,12 @@
+$kind: http-request
+name: 'Tier 1: Admin Analytics Requires Auth (401)'
+method: GET
+url: '{{base_url}}/api/admin/analytics'
+order: 38000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('GET /api/admin/analytics returns 401 when unauthenticated', () => {
+        pm.response.to.have.status(401);
+      });
