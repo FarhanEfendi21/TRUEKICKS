@@ -18,6 +18,7 @@ import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import SizeGuide from "../components/SizeGuide";
 import ZoomLoupe from "../components/ZoomLoupe";
+import { parseImageFrame, getImageFrameTransform } from "../lib/imageFrame";
 
 // --- HELPER COMPONENTS ---
 
@@ -640,8 +641,12 @@ export default function ProductDetail() {
     );
 
   const currentMainImage = activeImage || product.image_url;
-  const details = product.detail_images || [];
-  const galleryImages = [product.image_url, ...details];
+  const details = Array.isArray(product.detail_images)
+    ? product.detail_images.filter((url) => typeof url === "string" && url.trim() !== "")
+    : [];
+  const galleryImages = [product.image_url, ...details].filter(
+    (url, index, arr) => Boolean(url) && arr.indexOf(url) === index
+  );
 
   const handleScrollToReviews = () => {
     // 1. PAKSA BUKA Accordion Review terlebih dahulu
@@ -725,44 +730,48 @@ export default function ProductDetail() {
                 }
               />
 
-              {/* GALLERY THUMBNAILS (Fixed Border Version) */}
-              <div className="flex gap-3 md:gap-4 mt-6 md:mt-8 overflow-x-auto no-scrollbar pb-4 snap-x px-1 scroll-smooth pl-1">
-                {galleryImages.map((imgUrl, i) => {
-                  const isActive = currentMainImage === imgUrl;
+              {/* GALLERY THUMBNAILS (Only show when product has multiple angles) */}
+              {galleryImages.length > 1 && (
+                <div className="flex gap-3 md:gap-4 mt-6 md:mt-8 overflow-x-auto no-scrollbar pb-4 snap-x px-1 scroll-smooth pl-1">
+                  {galleryImages.map((imgUrl, i) => {
+                    const isActive = currentMainImage === imgUrl;
+                    const thumbFrame = parseImageFrame(imgUrl);
+                    const thumbTransform = getImageFrameTransform(thumbFrame);
 
-                  return (
-                    <div
-                      key={i}
-                      onClick={() => setActiveImage(imgUrl)}
-                      className={`
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => setActiveImage(imgUrl)}
+                        className={`
           relative flex-shrink-0 cursor-pointer transition-all duration-300 ease-out snap-start 
           w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center overflow-hidden border-2 p-[2px]
           ${isActive
-                          ? "bg-white border-black shadow-md scale-100 opacity-100"
-                          : "bg-[#F8F8F8] border-transparent hover:border-gray-300 opacity-70 hover:opacity-100 hover:bg-white"
-                        }
+                            ? "bg-white border-black shadow-md scale-100 opacity-100"
+                            : "bg-[#F8F8F8] border-transparent hover:border-gray-300 opacity-70 hover:opacity-100 hover:bg-white"
+                          }
         `}
-                    >
-                      {/* Inner Container untuk Gambar - memastikan background putih bersih di dalam border */}
-                      <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-white">
-                        <img
-                          src={imgUrl}
-                          // Sedikit animasi rotasi dan scale untuk kesan dinamis
-                          className={`
+                      >
+                        {/* Inner Container untuk Gambar - memastikan background putih bersih di dalam border */}
+                        <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-white overflow-hidden">
+                          <img
+                            src={thumbFrame.src}
+                            style={thumbTransform ? { transform: thumbTransform } : undefined}
+                            className={`
                 w-[85%] h-[85%] object-contain mix-blend-multiply transition-transform duration-500
-                ${isActive ? "scale-110 rotate-[-3deg]" : "scale-100 rotate-0"}
+                ${!thumbTransform && isActive ? "scale-110 rotate-[-3deg]" : ""}
               `}
-                          alt={`thumb-${i}`}
-                          onError={(e) => {
-                            e.target.src =
-                              "https://via.placeholder.com/100?text=No+Image";
-                          }}
-                        />
+                            alt={`thumb-${i}`}
+                            onError={(e) => {
+                              e.target.src =
+                                "https://via.placeholder.com/100?text=No+Image";
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

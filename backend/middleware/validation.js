@@ -1,5 +1,13 @@
 import { body, validationResult } from 'express-validator';
 
+const EMAIL_NORMALIZE_OPTS = {
+    gmail_remove_dots: false,
+    gmail_remove_subaddress: false,
+    outlookdotcom_remove_subaddress: false,
+    yahoo_remove_subaddress: false,
+    icloud_remove_subaddress: false,
+};
+
 // Validation rules for registration
 export const registerValidation = [
     body('full_name')
@@ -11,7 +19,7 @@ export const registerValidation = [
         .trim()
         .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Please enter a valid email')
-        .normalizeEmail(),
+        .normalizeEmail(EMAIL_NORMALIZE_OPTS),
 
     body('password')
         .notEmpty().withMessage('Password is required')
@@ -25,7 +33,7 @@ export const loginValidation = [
         .trim()
         .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Please enter a valid email')
-        .normalizeEmail(),
+        .normalizeEmail(EMAIL_NORMALIZE_OPTS),
 
     body('password')
         .notEmpty().withMessage('Password is required')
@@ -199,6 +207,228 @@ export const dropNotifyValidation = [
         .normalizeEmail()
 ];
 
+const isValidDetailImageUrl = (value) => {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > 1200) return false;
+    // Allow legacy local static asset paths (e.g. /images/530/...) with optional framing hash
+    if (/^\/images\/(?!.*\.\.)[A-Za-z0-9/_.%-]+(?:#[A-Za-z0-9=&._%-]+)?$/.test(trimmed)) {
+        return true;
+    }
+    try {
+        const parsed = new URL(trimmed);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
+// Validation rules for Admin Product Create
+export const adminProductCreateValidation = [
+    body('product_type')
+        .trim()
+        .isIn(['sneakers', 'apparel']).withMessage('product_type must be sneakers or apparel'),
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Product name is required')
+        .isLength({ min: 2, max: 180 }).withMessage('Product name must be 2-180 characters'),
+    body('category')
+        .trim()
+        .notEmpty().withMessage('Category / brand is required')
+        .isLength({ min: 1, max: 80 }).withMessage('Category must be 1-80 characters'),
+    body('price')
+        .isFloat({ min: 1000, max: 500000000 }).withMessage('Price must be a valid amount >= Rp 1.000'),
+    body('image_url')
+        .trim()
+        .notEmpty().withMessage('Image URL is required')
+        .isLength({ max: 1000 }).withMessage('Image URL is too long'),
+    body('description')
+        .optional()
+        .isString().withMessage('Description must be text')
+        .isLength({ max: 2000 }).withMessage('Description is too long'),
+    body('categories')
+        .optional({ values: 'falsy' })
+        .isString().withMessage('Sub-category must be text')
+        .isLength({ max: 80 }).withMessage('Sub-category is too long'),
+    body('initial_stock')
+        .optional()
+        .isInt({ min: 0, max: 9999 }).withMessage('initial_stock must be between 0 and 9999'),
+    body('detail_images')
+        .optional()
+        .isArray({ max: 6 }).withMessage('detail_images may contain at most 6 URLs'),
+    body('detail_images.*')
+        .optional()
+        .custom(isValidDetailImageUrl).withMessage('Each detail image must be a valid http(s) URL or /images/ path')
+];
+
+// Validation rules for Admin Product Update
+export const adminProductUpdateValidation = [
+    body('name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 180 }).withMessage('Product name must be 2-180 characters'),
+    body('category')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 80 }).withMessage('Category must be 1-80 characters'),
+    body('price')
+        .optional()
+        .isFloat({ min: 1000, max: 500000000 }).withMessage('Price must be >= Rp 1.000'),
+    body('image_url')
+        .optional()
+        .trim()
+        .notEmpty().withMessage('Image URL cannot be empty')
+        .isLength({ max: 1000 }).withMessage('Image URL is too long'),
+    body('description')
+        .optional()
+        .isString().withMessage('Description must be text')
+        .isLength({ max: 2000 }).withMessage('Description is too long'),
+    body('categories')
+        .optional({ values: 'falsy' })
+        .isString().withMessage('Sub-category must be text')
+        .isLength({ max: 80 }).withMessage('Sub-category is too long'),
+    body('detail_images')
+        .optional()
+        .isArray({ max: 6 }).withMessage('detail_images may contain at most 6 URLs'),
+    body('detail_images.*')
+        .optional()
+        .custom(isValidDetailImageUrl).withMessage('Each detail image must be a valid http(s) URL or /images/ path')
+];
+
+// Validation rules for Admin Signed Storage Upload
+export const adminSignedUploadValidation = [
+    body('product_type')
+        .optional()
+        .trim()
+        .isIn(['sneakers', 'apparel']).withMessage('product_type must be sneakers or apparel'),
+    body('product_id')
+        .optional({ values: 'null' })
+        .isInt({ min: 1 }).withMessage('product_id must be a positive integer'),
+    body('content_type')
+        .trim()
+        .isIn(['image/webp', 'image/png', 'image/jpeg', 'image/jpg']).withMessage('content_type must be image/webp, image/png, or image/jpeg'),
+    body('filename')
+        .optional()
+        .isString().withMessage('filename must be text')
+        .isLength({ max: 160 }).withMessage('filename is too long')
+];
+
+// Validation rules for Admin Detail Image Gallery Update
+export const adminDetailImagesValidation = [
+    body('detail_images')
+        .isArray({ max: 6 }).withMessage('detail_images must be an array with at most 6 URLs'),
+    body('detail_images.*')
+        .custom(isValidDetailImageUrl).withMessage('Each detail image must be a valid http(s) URL or /images/ path')
+];
+
+// Validation rules for Admin Storage Object Deletion
+export const adminDeleteUploadValidation = [
+    body('public_url')
+        .optional({ values: 'falsy' })
+        .isString().withMessage('public_url must be a string')
+        .isLength({ max: 1200 }).withMessage('public_url is too long'),
+    body('path')
+        .optional({ values: 'falsy' })
+        .isString().withMessage('path must be a string')
+        .isLength({ max: 300 }).withMessage('path is too long')
+];
+
+// Validation rules for Admin Bulk Variant Stock Upsert
+export const adminVariantsUpsertValidation = [
+    body('variants')
+        .isArray({ min: 1, max: 40 }).withMessage('variants must be a non-empty array'),
+    body('variants.*.size')
+        .trim()
+        .notEmpty().withMessage('Each variant must have a size')
+        .isLength({ max: 20 }).withMessage('Variant size is too long'),
+    body('variants.*.stock')
+        .isInt({ min: 0, max: 9999 }).withMessage('Variant stock must be an integer between 0 and 9999'),
+    body('variants.*.low_stock_threshold')
+        .optional()
+        .isInt({ min: 1, max: 100 }).withMessage('low_stock_threshold must be between 1 and 100')
+];
+
+// Validation rules for Admin Sale Listing
+export const adminSaleValidation = [
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Product name is required')
+        .isLength({ min: 2, max: 180 }).withMessage('Name must be 2-180 characters'),
+    body('brand')
+        .optional()
+        .trim()
+        .isLength({ max: 80 }).withMessage('Brand is too long'),
+    body('category')
+        .optional()
+        .trim()
+        .isLength({ max: 80 }).withMessage('Category is too long'),
+    body('image_url')
+        .trim()
+        .notEmpty().withMessage('Image URL is required')
+        .isLength({ max: 1000 }).withMessage('Image URL is too long'),
+    body('price')
+        .isFloat({ min: 1000, max: 500000000 }).withMessage('Original price must be >= Rp 1.000'),
+    body('discount_price')
+        .isFloat({ min: 1, max: 500000000 }).withMessage('Discount price must be > 0'),
+    body('description')
+        .optional()
+        .isString().withMessage('Description must be text')
+        .isLength({ max: 2000 }).withMessage('Description is too long')
+];
+
+// Validation rules for Admin Coupon CRUD
+export const adminCouponValidation = [
+    body('code')
+        .trim()
+        .notEmpty().withMessage('Coupon code is required')
+        .isLength({ min: 2, max: 40 }).withMessage('Coupon code must be 2-40 characters')
+        .matches(/^[A-Za-z0-9_-]+$/).withMessage('Coupon code may only contain letters, numbers, - and _'),
+    body('discount_type')
+        .trim()
+        .isIn(['percent', 'fixed']).withMessage('discount_type must be percent or fixed'),
+    body('discount_value')
+        .isInt({ min: 1, max: 500000000 }).withMessage('discount_value must be a positive integer'),
+    body('min_purchase')
+        .optional()
+        .isInt({ min: 0, max: 500000000 }).withMessage('min_purchase must be >= 0'),
+    body('expiry_date')
+        .optional({ values: 'falsy' })
+        .isISO8601().withMessage('expiry_date must be a valid ISO date')
+];
+
+// Validation rules for Admin Order Fulfillment Update
+export const adminOrderUpdateValidation = [
+    body('status')
+        .optional()
+        .trim()
+        .isIn([
+            'Pending Payment',
+            'Paid',
+            'Processing',
+            'Packed',
+            'Shipped',
+            'Delivered',
+            'Completed',
+            'Cancelled',
+            'Expired'
+        ]).withMessage('Invalid order status'),
+    body('courier')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 80 }).withMessage('Courier name must be 2-80 characters'),
+    body('tracking_number')
+        .optional({ values: 'falsy' })
+        .trim()
+        .isLength({ max: 80 }).withMessage('Tracking number must be <= 80 characters')
+];
+
+// Validation rules for Admin User Role Update
+export const adminUserRoleValidation = [
+    body('role')
+        .trim()
+        .isIn(['customer', 'admin']).withMessage('Role must be customer or admin')
+];
+
 // Middleware to check validation results
 export const validate = (req, res, next) => {
     const errors = validationResult(req);
@@ -225,5 +455,15 @@ export default {
     addressValidation,
     conciergeValidation,
     dropNotifyValidation,
+    adminProductCreateValidation,
+    adminProductUpdateValidation,
+    adminSignedUploadValidation,
+    adminDetailImagesValidation,
+    adminDeleteUploadValidation,
+    adminVariantsUpsertValidation,
+    adminSaleValidation,
+    adminCouponValidation,
+    adminOrderUpdateValidation,
+    adminUserRoleValidation,
     validate
 };

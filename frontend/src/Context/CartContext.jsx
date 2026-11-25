@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
-import api from "../lib/api";
+import api, { AUTH_CHANGE_EVENT } from "../lib/api";
 
 const CartContext = createContext();
 
@@ -92,6 +92,11 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   const hydrateFromCloud = useCallback(async () => {
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+
     const userId = getCurrentUserId();
     activeUserIdRef.current = userId;
 
@@ -107,6 +112,7 @@ export const CartProvider = ({ children }) => {
 
     try {
       const res = await api.get("/api/cart", { skipAuthRedirect: true });
+      if (activeUserIdRef.current !== userId) return;
       if (!res.data?.synced) {
         setIsCloudSynced(false);
         return;
@@ -128,21 +134,31 @@ export const CartProvider = ({ children }) => {
     }
   }, [pushCartToCloud]);
 
-  // Initial cloud sync on mount
+  // Initial cloud sync on mount + re-hydrate whenever auth identity changes
   useEffect(() => {
     const timer = setTimeout(() => {
       hydrateFromCloud();
     }, 0);
+    const handleAuthChange = () => {
+      const nextUserId = getCurrentUserId();
+      if (nextUserId !== activeUserIdRef.current) {
+        hydrateFromCloud();
+      }
+    };
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
     return () => {
       clearTimeout(timer);
+      window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
   }, [hydrateFromCloud]);
 
-  // Keep localStorage cache always warm
+  // Keep localStorage cache always warm only for the matching active user
   useEffect(() => {
     const userId = getCurrentUserId();
-    if (userId) {
+    if (userId && activeUserIdRef.current === userId) {
       localStorage.setItem(`cartItems_${userId}`, JSON.stringify(cartItems));
     }
   }, [cartItems]);

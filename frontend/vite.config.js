@@ -47,15 +47,18 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 
         runtimeCaching: [
-          // 1. Cache API Requests
+          // 1. Cache ONLY Public Read-Only Catalog API Requests (NEVER cache auth/user/admin/cart/order endpoints)
           {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api'),
+            urlPattern: ({ url }) =>
+              /^\/api\/(products|sneakers|apparel|sale|categories|all-reviews|reviews|drops|variants)(\/|$)/.test(
+                url.pathname
+              ),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'public-catalog-cache',
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 1 hari
+                maxEntries: 80,
+                maxAgeSeconds: 60 * 60 * 6 // 6 jam
               },
               cacheableResponse: {
                 statuses: [0, 200]

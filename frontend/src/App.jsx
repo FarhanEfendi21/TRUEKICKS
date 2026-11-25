@@ -11,6 +11,12 @@ import Layout from "./components/Layout.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import axios from "axios";
 import { Toaster } from "react-hot-toast";
+import api, {
+  clearSessionClientState,
+  getUser,
+  purgeLegacyApiCache,
+  setSessionUser,
+} from "./lib/api";
 
 const lazyWithRetry = (importer) =>
   lazy(async () => {
@@ -61,6 +67,7 @@ const OrderHistory = lazyWithRetry(() => import("./pages/OrderHistory.jsx"));
 const Search = lazyWithRetry(() => import("./pages/Search.jsx"));
 const VerifyAuthenticity = lazyWithRetry(() => import("./pages/VerifyAuthenticity.jsx"));
 const Drops = lazyWithRetry(() => import("./pages/Drops.jsx"));
+const AdminDashboard = lazyWithRetry(() => import("./pages/AdminDashboard.jsx"));
 
 // === REACT QUERY CLIENT ===
 const queryClient = new QueryClient({
@@ -119,23 +126,68 @@ function App() {
     };
   }, []);
 
-  // === 2. LOGIKA GUEST MODE OVERRIDE ===
+  // === 2. PURGE LEGACY POISONED BACKUP_USER + AUTHORITATIVE SESSION RECONCILIATION ===
+  // Ensures localStorage.user always matches the server HttpOnly JWT session on every refresh
+  // and never silently switches back to a previous user via stale sessionStorage/SW cache.
   useEffect(() => {
-    if (isOffline) {
-      const realUser = localStorage.getItem('user');
-      if (realUser) sessionStorage.setItem('backup_user', realUser);
-
-      const guestData = JSON.stringify({ full_name: 'Guest', email: 'guest@truekicks.com' });
-      localStorage.setItem('user', guestData);
-
-      window.dispatchEvent(new Event('storage'));
-    } else {
-      const backupUser = sessionStorage.getItem('backup_user');
-      if (backupUser) {
-        localStorage.setItem('user', backupUser);
-        window.dispatchEvent(new Event('storage'));
-      }
+    try {
+      sessionStorage.removeItem("backup_user");
+      localStorage.removeItem("profileImage");
+    } catch {
+      // Ignore storage errors
     }
+    purgeLegacyApiCache();
+
+    if (isOffline) return undefined;
+
+    let active = true;
+    const reconcileSession = async () => {
+      const localUser = getUser();
+      try {
+        const res = await api.get("/api/auth/me", {
+          skipAuthRedirect: true,
+          headers: { "Cache-Control": "no-cache" },
+        });
+        if (!active) return;
+
+        const serverUser = res.data?.user;
+        if (!serverUser?.id) {
+          if (localUser) {
+            clearSessionClientState();
+            queryClient.clear();
+          }
+          return;
+        }
+
+        const userChanged =
+          !localUser ||
+          Number(localUser.id) !== Number(serverUser.id) ||
+          localUser.email !== serverUser.email ||
+          localUser.role !== serverUser.role ||
+          localUser.full_name !== serverUser.full_name;
+
+        if (userChanged) {
+          const identitySwitched =
+            localUser && Number(localUser.id) !== Number(serverUser.id);
+          setSessionUser(serverUser);
+          if (identitySwitched) {
+            queryClient.clear();
+          }
+        }
+      } catch (err) {
+        if (!active) return;
+        // Only clear local session if server explicitly confirms 401 (no valid cookie)
+        if (err.response?.status === 401 && localUser) {
+          clearSessionClientState();
+          queryClient.clear();
+        }
+      }
+    };
+
+    reconcileSession();
+    return () => {
+      active = false;
+    };
   }, [isOffline]);
 
   return (
@@ -167,6 +219,7 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Splash />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/admin" element={<AdminDashboard />} />
 
                         {/* Layout membungkus semua halaman utama */}
                         <Route element={<Layout />}>

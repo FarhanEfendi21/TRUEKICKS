@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "../Context/LanguageContext";
+import { parseImageFrame, getImageFrameTransform } from "../lib/imageFrame";
 
 const LOUPE_SIZE = 176;
 const LOUPE_ZOOM = 2.6;
 
 export default function ZoomLoupe({ src, alt, badge }) {
   const { pick } = useLanguage();
+  const frame = parseImageFrame(src);
+  const frameTransform = getImageFrameTransform(frame);
   const containerRef = useRef(null);
   const [loupeEnabled, setLoupeEnabled] = useState(true);
   const [hoverPos, setHoverPos] = useState(null);
@@ -95,11 +98,12 @@ export default function ZoomLoupe({ src, alt, badge }) {
 
         {/* Product Image */}
         <img
-          src={src}
+          src={frame.src}
           alt={alt}
           key={src}
           draggable={false}
-          className="w-[85%] h-auto object-contain mix-blend-multiply z-10 drop-shadow-xl transition-transform duration-500 ease-out animate-fade-in select-none"
+          style={frameTransform ? { transform: frameTransform } : undefined}
+          className="w-[85%] max-h-full h-auto object-contain mix-blend-multiply z-10 drop-shadow-xl transition-transform duration-500 ease-out animate-fade-in select-none"
         />
 
         {/* Desktop Precision Circular Zoom Loupe */}
@@ -126,10 +130,11 @@ export default function ZoomLoupe({ src, alt, badge }) {
               }}
             >
               <img
-                src={src}
+                src={frame.src}
                 alt=""
                 draggable={false}
-                className="w-[85%] h-auto object-contain mix-blend-multiply"
+                style={frameTransform ? { transform: frameTransform } : undefined}
+                className="w-[85%] max-h-full h-auto object-contain mix-blend-multiply"
               />
             </div>
             <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-gray-950/80 text-white text-[9px] font-bold tracking-wider">
@@ -138,70 +143,89 @@ export default function ZoomLoupe({ src, alt, badge }) {
           </div>
         )}
 
-        {/* Bottom-right Studio Controls */}
+        {/* Bottom-right Studio Controls (Icon-only with hover tooltips) */}
         <div
           className="absolute bottom-5 right-5 z-20 flex items-center gap-2"
           onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => setHoverPos(null)}
+          onMouseMove={(e) => {
+            e.stopPropagation();
+            if (hoverPos) setHoverPos(null);
+          }}
         >
-          <button
-            type="button"
-            onClick={() => {
-              setLoupeEnabled((prev) => !prev);
-              setHoverPos(null);
-            }}
-            aria-label={
-              loupeEnabled
-                ? pick("Matikan kaca pembesar hover", "Disable hover zoom loupe")
-                : pick("Aktifkan kaca pembesar hover", "Enable hover zoom loupe")
-            }
-            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border backdrop-blur-md transition-colors ${
-              loupeEnabled
-                ? "bg-gray-900 text-white border-gray-900"
-                : "bg-white/90 text-gray-700 border-gray-200 hover:border-gray-400"
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-3.5 h-3.5"
+          <div className="relative hidden md:block group/loupe">
+            <button
+              type="button"
+              onClick={() => {
+                setLoupeEnabled((prev) => !prev);
+                setHoverPos(null);
+              }}
+              aria-pressed={loupeEnabled}
+              aria-label={
+                loupeEnabled
+                  ? pick("Matikan kaca pembesar hover", "Disable hover zoom loupe")
+                  : pick("Aktifkan kaca pembesar hover", "Enable hover zoom loupe")
+              }
+              className={`w-9 h-9 rounded-full flex items-center justify-center border backdrop-blur-md shadow-sm transition-colors ${
+                loupeEnabled
+                  ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+                  : "bg-white/90 text-gray-700 border-gray-200 hover:border-gray-400 hover:text-gray-950"
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"
-              />
-            </svg>
-            <span>
-              {pick("Loupe", "Loupe")}{" "}
-              {loupeEnabled ? pick("Aktif", "On") : pick("Mati", "Off")}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"
+                />
+              </svg>
+            </button>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute right-0 bottom-full mb-2 px-2.5 py-1 rounded-lg bg-gray-950/90 text-white text-[11px] font-medium whitespace-nowrap shadow-md opacity-0 translate-y-1 transition-all duration-150 group-hover/loupe:opacity-100 group-hover/loupe:translate-y-0 group-focus-within/loupe:opacity-100 group-focus-within/loupe:translate-y-0"
+            >
+              {loupeEnabled
+                ? pick("Loupe aktif · Klik untuk matikan", "Loupe on · Click to disable")
+                : pick("Loupe mati · Klik untuk aktifkan", "Loupe off · Click to enable")}
             </span>
-          </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={openInspector}
-            aria-label={pick("Buka inspektor tekstur layar penuh", "Open fullscreen texture inspector")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-gray-800 border border-gray-200 hover:border-gray-900 text-[11px] font-bold backdrop-blur-md shadow-sm transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-3.5 h-3.5"
+          <div className="relative group/inspect">
+            <button
+              type="button"
+              onClick={openInspector}
+              aria-label={pick("Buka inspektor tekstur layar penuh", "Open fullscreen texture inspector")}
+              className="w-9 h-9 rounded-full bg-white/90 text-gray-800 border border-gray-200 hover:border-gray-900 hover:text-gray-950 flex items-center justify-center backdrop-blur-md shadow-sm transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-              />
-            </svg>
-            <span>{pick("Inspeksi", "Inspect")}</span>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                />
+              </svg>
+            </button>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute right-0 bottom-full mb-2 px-2.5 py-1 rounded-lg bg-gray-950/90 text-white text-[11px] font-medium whitespace-nowrap shadow-md opacity-0 translate-y-1 transition-all duration-150 group-hover/inspect:opacity-100 group-hover/inspect:translate-y-0 group-focus-within/inspect:opacity-100 group-focus-within/inspect:translate-y-0"
+            >
+              {pick("Inspeksi layar penuh", "Fullscreen inspector")}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -286,11 +310,13 @@ export default function ZoomLoupe({ src, alt, badge }) {
                 }`}
               >
                 <img
-                  src={src}
+                  src={frame.src}
                   alt={alt}
                   draggable={false}
                   style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${inspectorZoom})`,
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${inspectorZoom})${
+                      frameTransform ? ` ${frameTransform}` : ""
+                    }`,
                   }}
                   className="max-w-[82%] max-h-[82%] object-contain mix-blend-multiply transition-transform duration-150 ease-out"
                 />

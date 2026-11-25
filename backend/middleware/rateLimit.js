@@ -1,9 +1,14 @@
 import rateLimit from 'express-rate-limit';
 
-// General API rate limiter
+// General API rate limiter (auth routes use dedicated authLimiter)
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Max 100 requests per windowMs
+    max: process.env.NODE_ENV === 'production' ? 600 : 2000,
+    skip: (req) =>
+        req.path === '/login' ||
+        req.path === '/register' ||
+        req.path === '/logout' ||
+        req.path === '/auth/me',
     message: {
         message: 'Too many requests, please try again later.',
         retryAfter: '15 minutes'

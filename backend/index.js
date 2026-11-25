@@ -7,7 +7,14 @@ import supabase from "./config/supabase.js";
 import bcrypt from "bcryptjs";
 
 // Security Middleware
-import { generateToken, authMiddleware, optionalAuth } from "./middleware/auth.js";
+import {
+  generateToken,
+  authMiddleware,
+  adminMiddleware,
+  optionalAuth,
+  resolveUserRole,
+  setNoStoreAuthHeaders,
+} from "./middleware/auth.js";
 import {
   registerValidation,
   loginValidation,
@@ -19,6 +26,16 @@ import {
   addressValidation,
   conciergeValidation,
   dropNotifyValidation,
+  adminProductCreateValidation,
+  adminProductUpdateValidation,
+  adminSignedUploadValidation,
+  adminDetailImagesValidation,
+  adminDeleteUploadValidation,
+  adminVariantsUpsertValidation,
+  adminSaleValidation,
+  adminCouponValidation,
+  adminOrderUpdateValidation,
+  adminUserRoleValidation,
   validate,
 } from "./middleware/validation.js";
 import { authLimiter, apiLimiter, conciergeLimiter } from "./middleware/rateLimit.js";
@@ -54,6 +71,29 @@ import {
   isMidtransLiveConfigured,
   isMidtransProduction,
 } from "./services/paymentService.js";
+import {
+  getAdminAnalytics,
+  listAdminProducts,
+  createAdminProduct,
+  updateAdminProduct,
+  deleteAdminProduct,
+  upsertAdminProductVariants,
+  createAdminSignedUpload,
+  deleteAdminStorageObject,
+  updateAdminProductDetailImages,
+  listAdminSales,
+  createAdminSale,
+  updateAdminSale,
+  deleteAdminSale,
+  listAdminCoupons,
+  createAdminCoupon,
+  updateAdminCoupon,
+  deleteAdminCoupon,
+  listAdminOrders,
+  updateAdminOrder,
+  listAdminUsers,
+  updateAdminUserRole,
+} from "./services/adminService.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -411,9 +451,10 @@ app.post("/api/register", authLimiter, registerValidation, validate, async (req,
 
     if (error) throw error;
 
-    // Remove password from response for security
+    // Remove password from response and attach resolved RBAC role
     const userResponse = { ...data[0] };
     delete userResponse.password;
+    userResponse.role = resolveUserRole(userResponse);
 
     res.status(201).json({ message: "Registration successful!", user: userResponse });
   } catch (error) {
@@ -421,19 +462,45 @@ app.post("/api/register", authLimiter, registerValidation, validate, async (req,
   }
 });
 
+const getAuthCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax", // 'none' is REQUIRED for cross-origin Vercel deployments
+    path: "/",
+  };
+};
+
 // === 6. ROUTE LOGIN (Masuk) ===
 app.post("/api/login", authLimiter, loginValidation, validate, async (req, res) => {
+  setNoStoreAuthHeaders(res);
   const { email, password } = req.body;
 
   // Normalize email (already validated by middleware)
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const { data: user, error } = await supabase
+    let { data: user, error } = await supabase
       .from("users")
       .select("*")
-      .eq("email", normalizedEmail)
-      .single();
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    // Backward compatibility for accounts stored with Gmail dots stripped by older normalizeEmail()
+    if (!user && !error && normalizedEmail.endsWith("@gmail.com")) {
+      const [localPart, domainPart] = normalizedEmail.split("@");
+      const dotlessEmail = `${localPart.replace(/\./g, "")}@${domainPart}`;
+      if (dotlessEmail !== normalizedEmail) {
+        const fallbackRes = await supabase
+          .from("users")
+          .select("*")
+          .ilike("email", dotlessEmail)
+          .maybeSingle();
+        user = fallbackRes.data;
+        error = fallbackRes.error;
+      }
+    }
 
     if (error || !user) {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -447,15 +514,14 @@ app.post("/api/login", authLimiter, loginValidation, validate, async (req, res) 
     // Generate JWT token
     const token = generateToken(user);
 
-    // Remove password from response for security
+    // Remove password from response and include resolved RBAC role
     const userResponse = { ...user };
     delete userResponse.password;
+    userResponse.role = resolveUserRole(user);
 
-    // Set token as an HttpOnly cookie
+    // Set token as an HttpOnly cookie with explicit root path
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // 'none' is REQUIRED for cross-origin Vercel deployments
+      ...getAuthCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -470,12 +536,55 @@ app.post("/api/login", authLimiter, loginValidation, validate, async (req, res) 
 
 // === 6a. ROUTE LOGOUT (Keluar) ===
 app.post("/api/logout", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  });
+  setNoStoreAuthHeaders(res);
+  res.clearCookie("token", getAuthCookieOptions());
   res.json({ message: "Logout successful!" });
+});
+
+// === 6a2. ROUTE CURRENT SESSION PROFILE + LIVE RBAC ROLE ===
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.userId);
+    let userRow = null;
+    const primaryRes = await supabase
+      .from("users")
+      .select("id, full_name, email, role, created_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (primaryRes.error) {
+      if (isMissingSchemaError(primaryRes.error)) {
+        const fallbackRes = await supabase
+          .from("users")
+          .select("id, full_name, email, created_at")
+          .eq("id", userId)
+          .maybeSingle();
+        if (fallbackRes.error) throw fallbackRes.error;
+        userRow = fallbackRes.data;
+      } else {
+        throw primaryRes.error;
+      }
+    } else {
+      userRow = primaryRes.data;
+    }
+
+    if (!userRow) {
+      return res.status(401).json({ message: "Session user not found." });
+    }
+
+    res.json({
+      user: {
+        id: userRow.id,
+        full_name: userRow.full_name,
+        email: userRow.email,
+        role: resolveUserRole(userRow),
+        created_at: userRow.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching current session user:", error.message);
+    res.status(500).json({ message: "Failed to verify session." });
+  }
 });
 
 // === 6b. ROUTE UPDATE USER PROFILE (Protected + Owner Only) ===
@@ -507,9 +616,10 @@ app.put("/api/users/:id", authMiddleware, updateProfileValidation, validate, asy
       return res.status(404).json({ error: "User not found." });
     }
 
-    // Remove password hash from response
+    // Remove password hash from response and preserve resolved role
     const userResponse = { ...data[0] };
     delete userResponse.password;
+    userResponse.role = resolveUserRole(userResponse);
 
     res.json({ message: "Profile updated successfully!", user: userResponse });
   } catch (error) {
@@ -557,6 +667,30 @@ app.get("/api/detail/:table/:id", async (req, res) => {
           total_stock: variantSummary.total_stock,
           variants: variantSummary.variants,
         };
+
+        // Inherit canonical sneaker detail_images when product is viewed via `products` or `sale_products`
+        if (
+          table !== "sneakers" &&
+          (!Array.isArray(productPayload.detail_images) ||
+            productPayload.detail_images.length === 0) &&
+          variantSummary.canonical_type === "sneakers" &&
+          variantSummary.canonical_id
+        ) {
+          const { data: canonicalSneaker } = await supabase
+            .from("sneakers")
+            .select("detail_images")
+            .eq("id", variantSummary.canonical_id)
+            .maybeSingle();
+          if (
+            Array.isArray(canonicalSneaker?.detail_images) &&
+            canonicalSneaker.detail_images.length > 0
+          ) {
+            productPayload = {
+              ...productPayload,
+              detail_images: canonicalSneaker.detail_images,
+            };
+          }
+        }
       }
     } catch (variantErr) {
       console.error("Failed attaching variant stock:", variantErr.message);
@@ -1817,6 +1951,384 @@ app.post("/api/payments/sandbox/simulate", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to simulate payment." });
   }
 });
+
+// === 19. ADMIN DASHBOARD & RBAC ROUTES (Protected: authMiddleware + adminMiddleware) ===
+
+app.get("/api/admin/analytics", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const analytics = await getAdminAnalytics({
+      days: req.query.days,
+      months: req.query.months,
+    });
+    res.json(analytics);
+  } catch (error) {
+    console.error("Admin analytics error:", error.message);
+    res.status(500).json({ error: "Failed to load admin analytics." });
+  }
+});
+
+// Admin Products CRUD & Variant Stock Matrix
+app.get("/api/admin/products", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const products = await listAdminProducts({
+      type: typeof req.query.type === "string" ? req.query.type : "all",
+      q: typeof req.query.q === "string" ? req.query.q : "",
+    });
+    res.json({ products });
+  } catch (error) {
+    console.error("Admin list products error:", error.message);
+    res.status(500).json({ error: "Failed to load products." });
+  }
+});
+
+app.post(
+  "/api/admin/products",
+  authMiddleware,
+  adminMiddleware,
+  adminProductCreateValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await createAdminProduct(req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.status(201).json({ message: "Product created.", product: result.product });
+    } catch (error) {
+      console.error("Admin create product error:", error.message);
+      res.status(500).json({ error: "Failed to create product." });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/products/:type/:id",
+  authMiddleware,
+  adminMiddleware,
+  adminProductUpdateValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminProduct(req.params.type, req.params.id, req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({ message: "Product updated.", product: result.product });
+    } catch (error) {
+      console.error("Admin update product error:", error.message);
+      res.status(500).json({ error: "Failed to update product." });
+    }
+  }
+);
+
+app.delete("/api/admin/products/:type/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await deleteAdminProduct(req.params.type, req.params.id);
+    if (!result.ok) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+    res.json({ message: "Product deleted.", deleted: result.deleted });
+  } catch (error) {
+    console.error("Admin delete product error:", error.message);
+    res.status(500).json({ error: "Failed to delete product." });
+  }
+});
+
+app.put(
+  "/api/admin/products/:type/:id/variants",
+  authMiddleware,
+  adminMiddleware,
+  adminVariantsUpsertValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await upsertAdminProductVariants(
+        req.params.type,
+        req.params.id,
+        req.body.variants
+      );
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({
+        message: "Variant stock updated.",
+        variants: result.variants,
+        total_stock: result.total_stock,
+      });
+    } catch (error) {
+      console.error("Admin update variants error:", error.message);
+      res.status(500).json({ error: "Failed to update variant stock." });
+    }
+  }
+);
+
+// Admin Direct Storage Signed Upload & Sneaker Detail Photo Gallery
+app.post(
+  "/api/admin/uploads/sign",
+  authMiddleware,
+  adminMiddleware,
+  adminSignedUploadValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await createAdminSignedUpload(req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Admin signed upload URL error:", error.message);
+      res.status(500).json({ error: "Failed to create upload URL." });
+    }
+  }
+);
+
+app.post(
+  "/api/admin/uploads/delete",
+  authMiddleware,
+  adminMiddleware,
+  adminDeleteUploadValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await deleteAdminStorageObject(req.body);
+      res.json(result);
+    } catch (error) {
+      console.error("Admin storage delete error:", error.message);
+      res.status(500).json({ error: "Failed to delete storage object." });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/products/:type/:id/detail-images",
+  authMiddleware,
+  adminMiddleware,
+  adminDetailImagesValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminProductDetailImages(
+        req.params.type,
+        req.params.id,
+        req.body.detail_images
+      );
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({
+        message: "Detail photo gallery updated.",
+        product: result.product,
+        detail_images: result.detail_images,
+      });
+    } catch (error) {
+      console.error("Admin detail images update error:", error.message);
+      res.status(500).json({ error: "Failed to update detail photo gallery." });
+    }
+  }
+);
+
+// Admin Sale Listings CRUD
+app.get("/api/admin/sales", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const sales = await listAdminSales();
+    res.json({ sales });
+  } catch (error) {
+    console.error("Admin list sales error:", error.message);
+    res.status(500).json({ error: "Failed to load sale listings." });
+  }
+});
+
+app.post(
+  "/api/admin/sales",
+  authMiddleware,
+  adminMiddleware,
+  adminSaleValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await createAdminSale(req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.status(201).json({ message: "Sale listing created.", sale: result.sale });
+    } catch (error) {
+      console.error("Admin create sale error:", error.message);
+      res.status(500).json({ error: "Failed to create sale listing." });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/sales/:id",
+  authMiddleware,
+  adminMiddleware,
+  adminSaleValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminSale(req.params.id, req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({ message: "Sale listing updated.", sale: result.sale });
+    } catch (error) {
+      console.error("Admin update sale error:", error.message);
+      res.status(500).json({ error: "Failed to update sale listing." });
+    }
+  }
+);
+
+app.delete("/api/admin/sales/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await deleteAdminSale(req.params.id);
+    if (!result.ok) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+    res.json({ message: "Sale listing deleted.", deleted: result.deleted });
+  } catch (error) {
+    console.error("Admin delete sale error:", error.message);
+    res.status(500).json({ error: "Failed to delete sale listing." });
+  }
+});
+
+// Admin Promo Coupons CRUD
+app.get("/api/admin/coupons", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const coupons = await listAdminCoupons();
+    res.json({ coupons });
+  } catch (error) {
+    console.error("Admin list coupons error:", error.message);
+    res.status(500).json({ error: "Failed to load coupons." });
+  }
+});
+
+app.post(
+  "/api/admin/coupons",
+  authMiddleware,
+  adminMiddleware,
+  adminCouponValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await createAdminCoupon(req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.status(201).json({ message: "Coupon created.", coupon: result.coupon });
+    } catch (error) {
+      console.error("Admin create coupon error:", error.message);
+      res.status(500).json({ error: "Failed to create coupon." });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/coupons/:id",
+  authMiddleware,
+  adminMiddleware,
+  adminCouponValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminCoupon(req.params.id, req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({ message: "Coupon updated.", coupon: result.coupon });
+    } catch (error) {
+      console.error("Admin update coupon error:", error.message);
+      res.status(500).json({ error: "Failed to update coupon." });
+    }
+  }
+);
+
+app.delete("/api/admin/coupons/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await deleteAdminCoupon(req.params.id);
+    if (!result.ok) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+    res.json({ message: "Coupon deleted.", deleted: result.deleted });
+  } catch (error) {
+    console.error("Admin delete coupon error:", error.message);
+    res.status(500).json({ error: "Failed to delete coupon." });
+  }
+});
+
+// Admin Orders Fulfillment & Tracking Number Management
+app.get("/api/admin/orders", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const orders = await listAdminOrders({
+      status: typeof req.query.status === "string" ? req.query.status : "",
+      q: typeof req.query.q === "string" ? req.query.q : "",
+      limit: req.query.limit,
+    });
+    res.json({ orders });
+  } catch (error) {
+    console.error("Admin list orders error:", error.message);
+    res.status(500).json({ error: "Failed to load orders." });
+  }
+});
+
+app.patch(
+  "/api/admin/orders/:id",
+  authMiddleware,
+  adminMiddleware,
+  adminOrderUpdateValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminOrder(req.params.id, req.body);
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({
+        message: "Order updated.",
+        order: result.order,
+        stock_restored: result.stock_restored,
+      });
+    } catch (error) {
+      console.error("Admin update order error:", error.message);
+      res.status(500).json({ error: "Failed to update order." });
+    }
+  }
+);
+
+// Admin Users & RBAC Role Management
+app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await listAdminUsers();
+    res.json(result);
+  } catch (error) {
+    console.error("Admin list users error:", error.message);
+    res.status(500).json({ error: "Failed to load users." });
+  }
+});
+
+app.patch(
+  "/api/admin/users/:id/role",
+  authMiddleware,
+  adminMiddleware,
+  adminUserRoleValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const result = await updateAdminUserRole({
+        targetUserId: req.params.id,
+        nextRole: req.body.role,
+        actorUserId: req.userId,
+      });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error });
+      }
+      res.json({ message: "User role updated.", user: result.user });
+    } catch (error) {
+      console.error("Admin update user role error:", error.message);
+      res.status(500).json({ error: "Failed to update user role." });
+    }
+  }
+);
 
 // === GLOBAL ERROR HANDLER (CORS & UNHANDLED ERRORS) ===
 app.use((err, req, res, next) => {

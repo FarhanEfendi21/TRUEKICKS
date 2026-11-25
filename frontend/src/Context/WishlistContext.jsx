@@ -1,8 +1,9 @@
 import { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
-import api from "../lib/api";
+import api, { AUTH_CHANGE_EVENT } from "../lib/api";
 
 const WishlistContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWishlist = () => useContext(WishlistContext);
 
 const getCurrentUserId = () => {
@@ -40,6 +41,7 @@ export const WishlistProvider = ({ children }) => {
   );
   const [isCloudSynced, setIsCloudSynced] = useState(false);
   const syncTimerRef = useRef(null);
+  const activeUserIdRef = useRef(getCurrentUserId());
 
   const pushWishlistToCloud = useCallback((items) => {
     const userId = getCurrentUserId();
@@ -63,7 +65,14 @@ export const WishlistProvider = ({ children }) => {
   }, []);
 
   const hydrateFromCloud = useCallback(async () => {
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+
     const userId = getCurrentUserId();
+    activeUserIdRef.current = userId;
+
     if (!userId) {
       setWishlistItems([]);
       setIsCloudSynced(false);
@@ -75,6 +84,7 @@ export const WishlistProvider = ({ children }) => {
 
     try {
       const res = await api.get("/api/wishlist", { skipAuthRedirect: true });
+      if (activeUserIdRef.current !== userId) return;
       if (!res.data?.synced) {
         setIsCloudSynced(false);
         return;
@@ -98,15 +108,25 @@ export const WishlistProvider = ({ children }) => {
     const timer = setTimeout(() => {
       hydrateFromCloud();
     }, 0);
+    const handleAuthChange = () => {
+      const nextUserId = getCurrentUserId();
+      if (nextUserId !== activeUserIdRef.current) {
+        hydrateFromCloud();
+      }
+    };
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
     return () => {
       clearTimeout(timer);
+      window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
   }, [hydrateFromCloud]);
 
   useEffect(() => {
     const userId = getCurrentUserId();
-    if (userId) {
+    if (userId && activeUserIdRef.current === userId) {
       localStorage.setItem(
         `wishlistItems_${userId}`,
         JSON.stringify(wishlistItems)

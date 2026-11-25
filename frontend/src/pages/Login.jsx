@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "../lib/api";
+import api, { logout, setSessionUser } from "../lib/api";
 import toast from "react-hot-toast";
 import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
@@ -140,12 +140,8 @@ export default function Login() {
           password: password,
         });
 
-        // SAFETY: Pastikan tidak menyimpan password di localStorage
         const userData = response.data.user;
-        if (userData.password) delete userData.password;
-
-        // Simpan data bersih ke LocalStorage (JWT Token kini diamankan via HttpOnly Cookie dari server)
-        localStorage.setItem("user", JSON.stringify(userData));
+        setSessionUser(userData);
 
         refreshCart();
         refreshWishlist();
@@ -180,8 +176,8 @@ export default function Login() {
   };
 
   // === FUNGSI GUEST MODE ===
-  const handleGuestLogin = () => {
-    localStorage.removeItem("user");
+  const handleGuestLogin = async () => {
+    await logout();
 
     refreshCart();
     refreshWishlist();

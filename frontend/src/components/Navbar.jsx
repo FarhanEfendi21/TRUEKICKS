@@ -6,7 +6,7 @@ import { useCart } from "../Context/CartContext";
 import { useWishlist } from "../Context/WishlistContext";
 import { useTheme } from "../Context/ThemeContext";
 import { useLanguage } from "../Context/LanguageContext";
-import { logout } from "../lib/api";
+import { AUTH_CHANGE_EVENT, logout, readProfileImage } from "../lib/api";
 import { formatRupiahShort, getEffectivePrice } from "../lib/pricing";
 import SearchBar from "./SearchBar";
 
@@ -85,7 +85,7 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const [user, setUser] = useState(readStoredUser);
-  const [profileImage, setProfileImage] = useState(() => localStorage.getItem("profileImage"));
+  const [profileImage, setProfileImage] = useState(() => readProfileImage(readStoredUser()));
 
   const { totalItems, refreshCart } = useCart();
   const { wishlistItems, removeFromWishlist, refreshWishlist } = useWishlist();
@@ -117,8 +117,9 @@ export default function Navbar() {
   // -----------------------------------------------
   useEffect(() => {
     const handleStorageSync = () => {
-      setUser(readStoredUser());
-      setProfileImage(localStorage.getItem("profileImage"));
+      const nextUser = readStoredUser();
+      setUser(nextUser);
+      setProfileImage(readProfileImage(nextUser));
     };
 
     const handleScroll = () => {
@@ -126,9 +127,11 @@ export default function Navbar() {
     };
 
     window.addEventListener("storage", handleStorageSync);
+    window.addEventListener(AUTH_CHANGE_EVENT, handleStorageSync);
     window.addEventListener("scroll", handleScroll);
     return () => {
       window.removeEventListener("storage", handleStorageSync);
+      window.removeEventListener(AUTH_CHANGE_EVENT, handleStorageSync);
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
@@ -139,6 +142,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     await logout();
     setUser(null);
+    setProfileImage(null);
 
     refreshCart();
     refreshWishlist();
@@ -168,7 +172,7 @@ export default function Navbar() {
           }`}
         onMouseLeave={() => { }}
       >
-        <div className="max-w-7xl mx-auto px-4 md:px-6 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex justify-between items-center gap-3">
           {/* ==================================================
              LOGO
           ================================================== */}
@@ -186,10 +190,10 @@ export default function Navbar() {
           {/* ==================================================
              MENU (CENTER) - Hidden below lg breakpoint
           ================================================== */}
-          <div className="hidden lg:flex items-center gap-1 text-sm font-medium bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full px-1.5 py-1.5">
+          <div className="hidden lg:flex items-center gap-0.5 xl:gap-1 text-xs xl:text-sm font-medium bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full px-1.5 py-1.5">
             <Link
               to="/home"
-              className={`px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/home'
+              className={`px-3 xl:px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 ${location.pathname === '/home'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
@@ -202,7 +206,7 @@ export default function Navbar() {
                 type="button"
                 aria-expanded={showCatalog}
                 onClick={() => setShowCatalog(!showCatalog)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all duration-200 ${showCatalog
+                className={`flex items-center gap-1.5 px-3 xl:px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 ${showCatalog
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                   : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
               >
@@ -221,7 +225,7 @@ export default function Navbar() {
 
             <Link
               to="/sneakers"
-              className={`px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/sneakers'
+              className={`px-3 xl:px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 ${location.pathname === '/sneakers'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
@@ -230,7 +234,7 @@ export default function Navbar() {
 
             <Link
               to="/apparel"
-              className={`px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/apparel'
+              className={`px-3 xl:px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 ${location.pathname === '/apparel'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
@@ -239,17 +243,17 @@ export default function Navbar() {
 
             <Link
               to="/drops"
-              className={`px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 ${location.pathname === '/drops'
+              className={`px-3 xl:px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${location.pathname === '/drops'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-semibold'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
-              {t("nav.drops")}
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] flex-shrink-0" />
+              <span>{t("nav.drops")}</span>
             </Link>
 
             <Link
               to="/sale"
-              className={`px-4 py-2 rounded-full font-semibold transition-all duration-200 ${location.pathname === '/sale'
+              className={`px-3 xl:px-4 py-2 rounded-full whitespace-nowrap font-semibold transition-all duration-200 ${location.pathname === '/sale'
                 ? 'bg-red-500 text-white shadow-sm'
                 : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
             >
@@ -571,38 +575,50 @@ export default function Navbar() {
 
                 {/* DROPDOWN MENU */}
                 {showUserMenu && (
-                  <div className="absolute top-full right-0 mt-4 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5 dark:ring-white/5">
+                  <div className="absolute top-full right-0 mt-4 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black/5 dark:ring-white/5">
                     <div className="p-2 space-y-1">
                       <Link
                         to="/profile"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
+                        className="flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-gray-400">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                         </svg>
-                        <span>{t("nav.myProfile")}</span>
+                        <span className="truncate whitespace-nowrap">{t("nav.myProfile")}</span>
                       </Link>
                       <Link
                         to="/orders"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
+                        className="flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white rounded-xl transition-colors"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-gray-400">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                         </svg>
-                        <span>{t("nav.myOrders")}</span>
+                        <span className="truncate whitespace-nowrap">{t("nav.myOrders")}</span>
                       </Link>
+                      {user?.role === "admin" && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-[#FF5500]">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                          </svg>
+                          <span className="truncate whitespace-nowrap">{t("nav.adminDashboard")}</span>
+                        </Link>
+                      )}
                       <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-left"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                         </svg>
-                        <span>{t("nav.logout")}</span>
+                        <span className="truncate whitespace-nowrap">{t("nav.logout")}</span>
                       </button>
                     </div>
                   </div>

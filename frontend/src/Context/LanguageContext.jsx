@@ -1,8 +1,20 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { resolveTranslation } from "../lib/translations";
+import { resolveTranslation as initialResolveTranslation } from "../lib/translations";
 
 const STORAGE_KEY = "truekicks_lang";
 const LanguageContext = createContext(undefined);
+
+let activeResolveTranslation = initialResolveTranslation;
+const hmrListeners = new Set();
+
+if (import.meta.hot) {
+  import.meta.hot.accept("../lib/translations", (nextMod) => {
+    if (nextMod?.resolveTranslation) {
+      activeResolveTranslation = nextMod.resolveTranslation;
+      hmrListeners.forEach((notify) => notify());
+    }
+  });
+}
 
 const readStoredLanguage = () => {
   if (typeof window === "undefined") return "id";
@@ -13,6 +25,16 @@ const readStoredLanguage = () => {
 
 export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState(readStoredLanguage);
+  const [dictVersion, setDictVersion] = useState(0);
+
+  useEffect(() => {
+    if (!import.meta.hot) return undefined;
+    const bump = () => setDictVersion((v) => v + 1);
+    hmrListeners.add(bump);
+    return () => {
+      hmrListeners.delete(bump);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -32,8 +54,9 @@ export function LanguageProvider({ children }) {
   }, []);
 
   const t = useCallback(
-    (key, vars) => resolveTranslation(language, key, vars),
-    [language]
+    (key, vars) => activeResolveTranslation(language, key, vars),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [language, dictVersion]
   );
 
   const pick = useCallback(
